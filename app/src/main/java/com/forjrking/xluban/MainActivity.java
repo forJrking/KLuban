@@ -1,6 +1,7 @@
 package com.forjrking.xluban;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -45,7 +46,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.compress_img:
                 if (mImages != null) {
                     ImageItem item = mImages.get(0);
-                    Luban2.with(this).load(item.path).executeCustom(200,300,600,new Luban2.OnCompressListener() {
+                    Luban2.with(this)
+                            .load(item.path)
+                            .setConfig(Bitmap.Config.RGB_565)
+                            .setFormat(Bitmap.CompressFormat.JPEG)
+                            .executeCustom(200, 300, 600, new Luban2.OnCompressListener() {
 
                         @Override
                         public void onStart() {
