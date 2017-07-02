@@ -16,7 +16,7 @@ import android.widget.ImageView;
 import com.bumptech.glide.Glide;
 import com.lzy.imagepicker.loader.ImageLoader;
 
-public class GildeImageLoader implements ImageLoader {
+public class GlideImageLoader implements ImageLoader {
     @Override
     public void displayImage(Activity activity, String path, ImageView imageView, int width, int height) {
         Glide.with(activity)//
