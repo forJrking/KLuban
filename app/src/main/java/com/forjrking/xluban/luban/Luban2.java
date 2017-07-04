@@ -1,4 +1,4 @@
-package com.forjrking.xluban.luban;
+package com.imaginer.yunjicore.image;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
 
 /**
  * @创建者 froJrking
@@ -35,12 +36,18 @@ public class Luban2 {
 
     private Bitmap.CompressFormat compressFormat = Bitmap.CompressFormat.JPEG;
 
-    private Bitmap.Config compressConfig = Bitmap.Config.ARGB_8888; //主要目的减少oom
+    private Bitmap.Config compressConfig = Bitmap.Config.ARGB_8888; //566可以减少oom
+
+    private int bestQuality = 100;
+
+    private boolean compress4Sample = true; //使用采样率压缩
 
     private Luban2(Context context) {
         mImageCacheDir = getImageCacheDir(context);
         if (executor == null)
             executor = new AsyncExecutor();
+        //计算大致系数
+        bestQuality = CompressEngine.calculateQuality(context);
     }
 
     public static Luban2 with(Context context) {
@@ -85,8 +92,17 @@ public class Luban2 {
      * @param compressFormat 图片格式
      * @return
      */
-    public Luban2 setFormat(Bitmap.CompressFormat compressFormat) {
+    public Luban2 format(Bitmap.CompressFormat compressFormat) {
         this.compressFormat = compressFormat;
+        return this;
+    }
+
+    /**
+     * @param compress4Sample 图片格式
+     * @return
+     */
+    public Luban2 compressType(boolean compress4Sample) {
+        this.compress4Sample = compress4Sample;
         return this;
     }
 
@@ -94,7 +110,7 @@ public class Luban2 {
      * 图片的清晰度 内存策略
      * 优先级 ARGB_8888 >RGB_565>ARGB_4444
      */
-    public Luban2 setConfig(Bitmap.Config compressConfig) {
+    public Luban2 compressConfig(Bitmap.Config compressConfig) {
         this.compressConfig = compressConfig;
         return this;
     }
@@ -161,7 +177,8 @@ public class Luban2 {
 
     //同步
     private File synExecute() throws IOException {
-        return new CompressEngine(mFile, getImageCacheFile(), compressFormat, compressConfig).compress();
+        return new CompressEngine(mFile, getImageCacheFile())
+                .compress(compress4Sample, compressFormat, compressConfig);
     }
 
     //异步
@@ -180,26 +197,16 @@ public class Luban2 {
             return;
         }
 
-        CompressWorker worker = new CompressWorker(mFile, 0, 0, 0, listener);
+        Luban2.CompressWorker worker = new Luban2.CompressWorker(mFile, 0, listener);
         listener.onStart();
         executor.execute(worker);
     }
 
     /**
-     * @param maxSize  KB单位
-     * @param listener
+     * @param maxSize  最大大小 必须指定 否则  {@use execute(...listener)}
+     * @param listener 回调
      */
     public void executeCustom(int maxSize, OnCompressListener listener) {
-        executeCustom(maxSize, 0, 0, listener);
-    }
-
-    /**
-     * @param maxSize   最大大小 必须指定 否则  {@use execute(...listener)}
-     * @param maxWidth  最大宽度
-     * @param maxHeight 最大高度
-     * @param listener  回调
-     */
-    public void executeCustom(int maxSize, int maxWidth, int maxHeight, OnCompressListener listener) {
         if (listener == null) {
             throw new NullPointerException("the listener must be attached!");
         }
@@ -217,7 +224,7 @@ public class Luban2 {
         if (maxSize <= 0) {
             throw new NullPointerException("fuck bitch! Are you reader the method's doc?");
         }
-        CompressWorker worker = new CompressWorker(mFile, maxSize, maxWidth, maxHeight, listener);
+        Luban2.CompressWorker worker = new Luban2.CompressWorker(mFile, maxSize, listener);
         listener.onStart();
         executor.execute(worker);
     }
@@ -235,7 +242,7 @@ public class Luban2 {
             throw new NullPointerException("the listener must be attached!");
         }
 
-        MultiCompressWorker worker = new MultiCompressWorker(mFiles, listener);
+        Luban2.MultiCompressWorker worker = new Luban2.MultiCompressWorker(mFiles, listener);
         listener.onStart();
         executor.execute(worker);
     }
@@ -270,13 +277,11 @@ public class Luban2 {
 
         private File mOrignal;
         private OnCompressListener listener;
+        private int maxSize;
 
-        private int maxSize, maxWidth, maxHeight;
 
-        public CompressWorker(File file, int maxSize, int maxWidth, int maxHeight, OnCompressListener l) {
+        public CompressWorker(File file, int maxSize, OnCompressListener l) {
             this.maxSize = maxSize;
-            this.maxWidth = maxWidth;
-            this.maxHeight = maxHeight;
             this.mOrignal = file;
             this.listener = l;
         }
@@ -288,13 +293,14 @@ public class Luban2 {
                 //必须指定最大尺寸
                 if (maxSize <= 0) {
                     //单文件普通
-                    res = new CompressEngine(mOrignal, getImageCacheFile(), compressFormat, compressConfig).compress();
+                    res = new CompressEngine(mOrignal, getImageCacheFile())
+                            .compress(compress4Sample, compressFormat, compressConfig);
                 } else {
                     //自定义压缩
-                    res = new CompressEngine(mOrignal, getImageCacheFile(), compressFormat, compressConfig)
-                            .customCompress(maxSize, maxWidth, maxHeight);
+                    res = new CompressEngine(mOrignal, getImageCacheFile())
+                            .customCompress(maxSize, compress4Sample, bestQuality, compressFormat, compressConfig);
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
                 listener.onError(e);
             }
@@ -325,7 +331,8 @@ public class Luban2 {
             for (int i = 0; i < files.size(); i++) {
                 File res = files.get(i);
                 try {
-                    outPuts.add(new CompressEngine(res, getImageCacheFile(), compressFormat, compressConfig).compress());
+                    outPuts.add(new CompressEngine(res, getImageCacheFile())
+                            .compress(compress4Sample, compressFormat, compressConfig));
                 } catch (Exception ex) {
                     //失败多次回调
                     listener.onError(ex, res);
