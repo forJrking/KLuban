@@ -5,10 +5,11 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.forjrking.xluban.luban.Luban2;
 import com.lzy.imagepicker.ImagePicker;
@@ -67,9 +68,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (mImages != null) {
                     ImageItem item = mImages.get(0);
                     Luban2.with(this)
-                            .load(item.path)
-                            .setConfig(Bitmap.Config.RGB_565)
-                            .setFormat(Bitmap.CompressFormat.JPEG)
+                            .load(item.uri)
+                            .compressConfig(Bitmap.Config.RGB_565)
+                            .format(Bitmap.CompressFormat.JPEG)
                             .execute(new Luban2.OnCompressListener() {
 
                                 @Override

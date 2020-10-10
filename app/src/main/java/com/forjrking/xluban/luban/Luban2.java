@@ -1,8 +1,10 @@
-package com.imaginer.yunjicore.image;
+package com.forjrking.xluban.luban;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.net.Uri;
 import android.util.Log;
+
 
 import java.io.File;
 import java.io.IOException;
@@ -15,7 +17,6 @@ import java.util.List;
  * @创建者 froJrking
  * @创建时间 2017/6/27 17:41
  * @描述 ${鲁班工具2}
- * @公司 浙江云集科技
  * <p>
  * 鲁班2 可以指定 压缩后的格式，支持多文件压缩，可以指定之定义大小去压缩
  */
@@ -54,11 +55,15 @@ public class Luban2 {
         return new Luban2(context);
     }
 
+    public Luban2 load(Uri uri) {
+//        this.mFile = ;
+        return this;
+    }
+
     public Luban2 load(File file) {
         this.mFile = file;
         return this;
     }
-
     /**
      * 多文件支持 executeMulti()
      */

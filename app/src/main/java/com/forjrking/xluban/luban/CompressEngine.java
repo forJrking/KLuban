@@ -1,4 +1,4 @@
-package com.imaginer.yunjicore.image;
+package com.forjrking.xluban.luban;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -19,7 +19,6 @@ import java.io.IOException;
  * @创建者 froJrking
  * @创建时间 2017/6/27 17:43
  * @描述 ${压缩引擎}
- * @公司 浙江云集科技
  */
 
 public class CompressEngine {

@@ -1,15 +1,15 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 25
-    buildToolsVersion "25.0.2"
+    compileSdkVersion 29
+    buildToolsVersion "30.0.0"
     defaultConfig {
         applicationId "com.forjrking.xluban"
         minSdkVersion 14
-        targetSdkVersion 22
+        targetSdkVersion 29
         versionCode 1
         versionName "1.0"
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     buildTypes {
         release {
@@ -20,8 +20,9 @@ android {
 }
 
 dependencies {
-    compile 'com.lzy.widget:imagepicker:0.5.5'
-    compile 'com.github.bumptech.glide:glide:3.8.0'
-    compile 'com.android.support:appcompat-v7:25.3.1'
-
+    implementation 'com.cysion:ImagePicker:1.2.1.Q'
+    implementation ("com.github.bumptech.glide:glide:4.11.0@aar") {
+        transitive = true
+    }
+    implementation 'androidx.appcompat:appcompat:1.2.0'
 }
