@@ -16,7 +16,6 @@ class Luban {
     private var mTargetDir: String?
     private val mLeastCompressSize: Int
     private val mRenameListener: OnRenameListener?
-    private val mCompressListener: OnCompressListener?
     private val mCompressionPredicate: CompressionPredicate?
     private val mStreamProviders: MutableList<InputStreamProvider>?
 

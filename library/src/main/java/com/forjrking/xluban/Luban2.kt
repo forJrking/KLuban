@@ -4,6 +4,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Bitmap.CompressFormat
 import android.net.Uri
+import androidx.annotation.MainThread
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.MutableLiveData
 import com.forjrking.xluban.io.InputStreamAdapter
 import com.forjrking.xluban.io.InputStreamProvider
 import java.io.File
@@ -54,13 +57,15 @@ class Luban2(builder: Builder) {
 
 
     inner class Builder constructor(private val context: Context) {
+
+        private var owner: LifecycleOwner
         private var mOutPutDir: String? = null
         private var compress4Sample = true //使用采样率压缩
         private var mIgnoreSize = 100      //100kb
         private var mCompressFormat: CompressFormat? = null //输出格式
         private var mRenameListener: OnRenameListener? = null
-        private var mCompressListener: OnCompressListener? = null
-        private var mMultiCompressListener: OnMultiCompressListener? = null
+        private var mSingleLiveData = CompressLiveData<File>()
+        private var mMultiLiveData = CompressLiveData<MutableList<File>>()
         private var mCompressionPredicate: ((String) -> Boolean)? = null
         private val mStreamProviders: MutableList<InputStreamProvider> = ArrayList()
 
@@ -133,13 +138,19 @@ class Luban2(builder: Builder) {
             return this
         }
 
-        fun setMultiCompressListener(listener: OnMultiCompressListener?): Builder {
-            mMultiCompressListener = listener
+        /**
+         * 多文件压缩回调
+         */
+        fun observerMultiCompress(compressResult: CompressResult<MutableList<File>>.() -> Unit): Builder {
+            mMultiLiveData.compressObserver(owner, compressResult)
             return this
         }
 
-        fun setCompressListener(listener: OnCompressListener?): Builder {
-            mCompressListener = listener
+        /**
+         * 单个文件压缩回调,多文件压缩设置此回调,会多次调用 onSuccess(..)
+         */
+        fun observerCompress(compressResult: CompressResult<File>.() -> Unit): Builder {
+            mSingleLiveData.compressObserver(owner, compressResult)
             return this
         }
 
@@ -194,20 +205,38 @@ class Luban2(builder: Builder) {
     }
 }
 
-/**
- * 多文件压缩回调
- */
-interface OnMultiCompressListener {
-    fun onStart()
-    fun onSuccess(files: List<File>)
-    fun onError(e: Throwable?, file: File?)
+@MainThread
+fun <T> CompressLiveData<T>.compressObserver(
+        owner: LifecycleOwner,
+        compressResult: CompressResult<T>.() -> Unit
+) {
+    val result = CompressResult<T>()
+    result.compressResult()
+    observe(owner, androidx.lifecycle.Observer {
+        when (it) {
+            is State.Start -> {
+                result.onStart()
+            }
+            is State.Success -> {
+                result.onSuccess(it.data)
+            }
+            is State.Error -> {
+                result.onError(it.error, it.file)
+            }
+        }
+    })
 }
 
-/**
- * 单个文件压缩回调,多文件压缩设置此回调,会多次调用 onSuccess(..)
- */
-interface OnCompressListener {
-    fun onStart()
-    fun onSuccess(file: File)
-    fun onError(e: Throwable?)
+class CompressResult<T> {
+    var onSuccess: (data: T) -> Unit = {}
+    var onError: (Throwable, File?) -> Unit = { e: Throwable, file: File? -> }
+    var onStart: () -> Unit = {}
 }
+
+sealed class State<out T> {
+    object Start : State<Nothing>()
+    data class Success<out T>(val data: T) : State<T>()
+    data class Error(val error: Throwable, val file: File?) : State<Nothing>()
+}
+
+typealias CompressLiveData<T> = MutableLiveData<State<T>>
