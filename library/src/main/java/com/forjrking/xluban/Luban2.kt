@@ -210,8 +210,7 @@ fun <T> CompressLiveData<T>.compressObserver(
         owner: LifecycleOwner,
         compressResult: CompressResult<T>.() -> Unit
 ) {
-    val result = CompressResult<T>()
-    result.compressResult()
+    val result = CompressResult<T>();result.compressResult()
     observe(owner, androidx.lifecycle.Observer {
         when (it) {
             is State.Start -> {
@@ -228,9 +227,9 @@ fun <T> CompressLiveData<T>.compressObserver(
 }
 
 class CompressResult<T> {
+    var onStart: () -> Unit = {}
     var onSuccess: (data: T) -> Unit = {}
     var onError: (Throwable, File?) -> Unit = { e: Throwable, file: File? -> }
-    var onStart: () -> Unit = {}
 }
 
 sealed class State<out T> {
