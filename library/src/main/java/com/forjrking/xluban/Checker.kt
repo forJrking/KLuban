@@ -9,6 +9,7 @@ import com.forjrking.xluban.parser.DefaultImgHeaderParser
 import com.forjrking.xluban.parser.ExifInterfaceImgHeaderParser
 import com.forjrking.xluban.parser.ImageType
 import com.forjrking.xluban.parser.ImgHeaderParser
+import java.io.File
 import java.io.IOException
 import java.io.InputStream
 
@@ -53,6 +54,26 @@ internal object Checker {
         } else {
             DEFAULT_XX_HEIGHT_QUALITY
         }
+    }
+
+    /**
+     * Returns a directory with the given name in the private cache directory of the application to
+     * use to store retrieved media and thumbnails.
+     *
+     * @param context   A context.
+     * @param cacheName The name of the subdirectory in which to store the cache.
+     * @see .getImageCacheDir
+     */
+    private fun getImageCacheDir(context: Context, cacheName: String): File? {
+        val cacheDir = context.externalCacheDir
+        if (cacheDir != null) {
+            val result = File(cacheDir, cacheName)
+            return if (!result.mkdirs() && (!result.exists() || !result.isDirectory)) {
+                // File wasn't able to create a directory, or the result exists but not a directory
+                null
+            } else result
+        }
+        return null
     }
 
     const val MARK_READ_LIMIT = 5 * 1024 * 1024
