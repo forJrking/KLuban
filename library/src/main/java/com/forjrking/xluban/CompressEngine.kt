@@ -5,7 +5,6 @@ import android.graphics.Bitmap.CompressFormat
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.util.Log
-import androidx.annotation.MainThread
 import androidx.annotation.WorkerThread
 import com.forjrking.xluban.Checker.TAG
 import com.forjrking.xluban.io.ArrayProvide
@@ -45,7 +44,7 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
 
     @WorkerThread
     @Throws(IOException::class)
-    suspend fun compress(): File {
+    fun compress(): File {
         //获取jpeg旋转角度
         val angle = Checker.getOrientation(srcStream.rewindAndGet())
         //解析Bitmap

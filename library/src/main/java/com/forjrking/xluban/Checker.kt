@@ -1,5 +1,6 @@
 package com.forjrking.xluban
 
+import android.app.Application
 import android.content.Context
 import android.os.Build
 import android.util.DisplayMetrics
@@ -149,6 +150,38 @@ internal object Checker {
     private interface OrientationReader {
         @Throws(IOException::class)
         fun getOrientation(parser: ImgHeaderParser): Int
+    }
+
+    /** DES: 高版本废弃反射后建议自己赋值 */
+    lateinit var context: Context
+
+    init {
+        try {
+            context = reflectContext()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * DES: 反射获取全局Context  后期可能被google废弃这里会报错
+     */
+    private fun reflectContext(): Context {
+        try {
+            return Class.forName("android.app.ActivityThread")
+                    .getMethod("currentApplication")
+                    .invoke(null) as Application
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        try {
+            return Class.forName("android.app.AppGlobals")
+                    .getMethod("getInitialApplication")
+                    .invoke(null) as Application
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        throw IllegalStateException("reflect Context error,高版本废弃反射后建议自己赋值")
     }
 
 }

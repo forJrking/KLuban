@@ -1,6 +1,5 @@
 package com.forjrking.xluban
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Bitmap.CompressFormat
 import android.net.Uri
@@ -19,7 +18,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.*
-import java.lang.NullPointerException
 import kotlin.jvm.Throws
 
 /**
@@ -30,7 +28,7 @@ import kotlin.jvm.Throws
 class Luban private constructor(private val owner: LifecycleOwner) {
 
     companion object {
-        lateinit var context: Context
+
         private const val DEFAULT_DISK_CACHE_DIR = "luban_disk_cache"
 
         fun with(context: FragmentActivity): Luban {
@@ -42,47 +40,28 @@ class Luban private constructor(private val owner: LifecycleOwner) {
         }
 
         fun with(owner: LifecycleOwner = ProcessLifecycleOwner.get()): Luban {
-            if (!::context.isInitialized) {
-                context = when (owner) {
-                    is Context -> {
-                        owner.applicationContext
-                    }
-                    else -> {
-                        throw NullPointerException("context must be init")
-                    }
-                }
-            }
             return Luban(owner)
         }
     }
 
     //质量压缩质量系数 0~100 无损压缩无用
-    private var bestQuality = Checker.calculateQuality(context)
-
+    private var bestQuality = Checker.calculateQuality(Checker.context)
     //输出目录
-    private var mOutPutDir: String? = Checker.getCacheDir(context, DEFAULT_DISK_CACHE_DIR)?.absolutePath
-
+    private var mOutPutDir: String? = Checker.getCacheDir(Checker.context, DEFAULT_DISK_CACHE_DIR)?.absolutePath
     // 使用采样率压缩 or 双线性压缩
     private var mCompress4Sample = true
-
     // 忽略压缩大小
     private var mIgnoreSize = 100 * 1024L
-
     //输出格式
     private var mCompressFormat: CompressFormat? = null
-
     // 重命名或文件重定向
     private var mRenamePredicate: ((String) -> String)? = null
-
     // 单个订阅监听
     private var mSingleLiveData = CompressLiveData<File>()
-
     // 多个文件订阅监听
     private var mMultiLiveData = CompressLiveData<MutableList<File>>()
-
     //压缩过滤器
     private var mCompressionPredicate: ((InputStreamProvider<*>) -> Boolean) = { true }
-
     //元数据集合
     private val mStreamProviders: MutableList<InputStreamProvider<*>> = ArrayList()
 
@@ -121,7 +100,7 @@ class Luban private constructor(private val owner: LifecycleOwner) {
         mStreamProviders.add(object : InputStreamAdapter<Uri>() {
             @Throws(IOException::class)
             override fun openInternal(): InputStream {
-                return context.contentResolver.openInputStream(uri)!!
+                return Checker.context.contentResolver.openInputStream(uri)!!
             }
 
             override val src: Uri?
