@@ -52,7 +52,7 @@ class Luban2 private constructor(private val owner: LifecycleOwner) {
 
     // 把数据转换成 流
     private fun <T> loadGeneric(vararg ts: T, transform: (T) -> InputStream): Builder<T, File> {
-        val providers: MutableList<InputStreamProvider<T>> = ArrayList()
+        val providers: MutableList<InputStreamProvider<T>> = ArrayList(1)
         ts.forEach {
             providers.add(object : InputStreamAdapter<T>() {
                 @Throws(IOException::class)
@@ -67,7 +67,7 @@ class Luban2 private constructor(private val owner: LifecycleOwner) {
         return Builder(owner, providers)
     }
 
-    fun <T> load(vararg list: T): Builder<T, File> {
+    fun <T> load(vararg list: T): Builder<T, MutableList<File>> {
         val providers: MutableList<InputStreamProvider<T>> = ArrayList()
         list.forEach {
             providers.add(object : InputStreamAdapter<T>() {

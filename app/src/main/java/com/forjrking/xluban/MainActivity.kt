@@ -70,7 +70,15 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             }
         }
 
-        Luban2.with(this).load("").filter {  }
+        //美如画
+        Luban2.with(this)
+                .load("a")
+                .filter { true }
+                .compressObserver {
+                    onSuccess = { }
+                    onStart = {}
+                    onCompletion = {}
+                }.launch()
 
     }
 
