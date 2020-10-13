@@ -14,5 +14,5 @@ interface InputStreamProvider<T> {
     @Throws(IOException::class)
     fun rewindAndGet(): InputStream
     fun close()
-    val src: T? //源数据
+    val src: T //源数据
 }

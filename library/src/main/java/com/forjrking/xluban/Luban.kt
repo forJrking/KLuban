@@ -77,7 +77,7 @@ class Luban private constructor(private val owner: LifecycleOwner) {
                 return FileInputStream(file)
             }
 
-            override val src: File?
+            override val src: File
                 get() = file
         })
         return this
@@ -90,7 +90,7 @@ class Luban private constructor(private val owner: LifecycleOwner) {
                 return FileInputStream(string)
             }
 
-            override val src: String?
+            override val src: String
                 get() = string
         })
         return this
@@ -103,7 +103,7 @@ class Luban private constructor(private val owner: LifecycleOwner) {
                 return Checker.context.contentResolver.openInputStream(uri)!!
             }
 
-            override val src: Uri?
+            override val src: Uri
                 get() = uri
         })
         return this
@@ -273,10 +273,10 @@ class Luban private constructor(private val owner: LifecycleOwner) {
 }
 
 @MainThread
-fun <T> CompressLiveData<T>.compressObserver(owner: LifecycleOwner,
-                                             compressResult: CompressResult<T>.() -> Unit
+fun <R> CompressLiveData<R>.compressObserver(owner: LifecycleOwner,
+                                             compressResult: CompressResult<R>.() -> Unit
 ) {
-    val result = CompressResult<T>();result.compressResult()
+    val result = CompressResult<R>();result.compressResult()
     observe(owner, androidx.lifecycle.Observer {
         when (it) {
             is State.Start -> {
@@ -295,18 +295,18 @@ fun <T> CompressLiveData<T>.compressObserver(owner: LifecycleOwner,
     })
 }
 
-class CompressResult<T> {
+class CompressResult<R> {
     var onStart: () -> Unit = {}
     var onCompletion: () -> Unit = {}
-    var onSuccess: (data: T) -> Unit = {}
-    var onError: (Throwable, File?) -> Unit = { e: Throwable, file: File? -> }
+    var onSuccess: (data: R) -> Unit = {}
+    var onError: (Throwable, File?) -> Unit = { _: Throwable, _: File? -> }
 }
 
-sealed class State<out T> {
+sealed class State<out R> {
     object Start : State<Nothing>()
     object Completion : State<Nothing>()
-    data class Success<out T>(val data: T) : State<T>()
+    data class Success<out R>(val data: R) : State<R>()
     data class Error(val error: Throwable, val file: File? = null) : State<Nothing>()
 }
 
-typealias CompressLiveData<T> = MutableLiveData<State<T>>
+typealias CompressLiveData<R> = MutableLiveData<State<R>>

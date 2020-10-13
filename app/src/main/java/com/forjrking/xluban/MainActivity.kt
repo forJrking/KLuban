@@ -70,6 +70,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             }
         }
 
+        Luban2.with(this).load("").filter {  }
+
     }
 
     override fun onClick(v: View) {
