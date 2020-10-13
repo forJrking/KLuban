@@ -4,21 +4,22 @@ import android.graphics.Bitmap
 import android.graphics.Bitmap.CompressFormat
 import android.net.Uri
 import androidx.annotation.IntRange
-import androidx.annotation.MainThread
-import androidx.annotation.WorkerThread
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import com.forjrking.xluban.ext.CompressLiveData
+import com.forjrking.xluban.ext.CompressResult
+import com.forjrking.xluban.ext.State
+import com.forjrking.xluban.ext.compressObserver
 import com.forjrking.xluban.io.InputStreamAdapter
 import com.forjrking.xluban.io.InputStreamProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.io.*
-import kotlin.jvm.Throws
 
 /**
  * @description:
@@ -28,8 +29,6 @@ import kotlin.jvm.Throws
 class Luban private constructor(private val owner: LifecycleOwner) {
 
     companion object {
-
-        private const val DEFAULT_DISK_CACHE_DIR = "luban_disk_cache"
 
         fun with(context: FragmentActivity): Luban {
             return with(context as LifecycleOwner)
@@ -44,108 +43,111 @@ class Luban private constructor(private val owner: LifecycleOwner) {
         }
     }
 
+    fun load(inputStream: InputStream) = loadGeneric(inputStream) { it }
+
+    fun load(file: File) = loadGeneric(file) { FileInputStream(it) }
+
+    fun load(path: String) = loadGeneric(path) { FileInputStream(it) }
+
+    fun load(uri: Uri) = loadGeneric(uri) { Checker.context.contentResolver.openInputStream(it)!! }
+
+    // 把数据转换成 流
+    private fun <T> loadGeneric(ts: T, transform: (T) -> InputStream): Builder<T, File> {
+
+        val provider = object : InputStreamAdapter<T>() {
+            @Throws(IOException::class)
+            override fun openInternal(): InputStream {
+                return transform.invoke(src)
+            }
+
+            override val src: T
+                get() = ts
+        }
+
+        return SingleRequestBuild(owner, provider)
+    }
+
+    fun <T> load(vararg list: T): Builder<T, MutableList<File>> {
+        val providers: MutableList<InputStreamProvider<T>> = ArrayList()
+        list.forEach {
+            providers.add(object : InputStreamAdapter<T>() {
+                @Throws(IOException::class)
+                override fun openInternal(): InputStream {
+                    return when (src) {
+                        is String -> {
+                            FileInputStream(src as String)
+                        }
+                        is File -> {
+                            FileInputStream(src as File)
+                        }
+                        is Uri -> {
+                            Checker.context.contentResolver.openInputStream(src as Uri)!!
+                        }
+                        else -> {
+                            throw IOException("Incoming data type exception, it must be String, File, Uri")
+                        }
+                    }
+                }
+
+                override val src: T
+                    get() = it
+            })
+        }
+        return MultiRequestBuild(owner, providers)
+    }
+}
+
+/** DES: 默认目录 */
+private const val DEFAULT_DISK_CACHE_DIR = "luban_disk_cache"
+
+/** DES: T 表示源数据 R表示生成结果 */
+@Suppress("BlockingMethodInNonBlockingContext")
+abstract class Builder<T, R>(private val owner: LifecycleOwner) {
+
     //质量压缩质量系数 0~100 无损压缩无用
     private var bestQuality = Checker.calculateQuality(Checker.context)
+
     //输出目录
     private var mOutPutDir: String? = Checker.getCacheDir(Checker.context, DEFAULT_DISK_CACHE_DIR)?.absolutePath
+
     // 使用采样率压缩 or 双线性压缩
     private var mCompress4Sample = true
+
     // 忽略压缩大小
     private var mIgnoreSize = 100 * 1024L
+
     //输出格式
     private var mCompressFormat: CompressFormat? = null
+
     // 重命名或文件重定向
     private var mRenamePredicate: ((String) -> String)? = null
+
     // 单个订阅监听
-    private var mSingleLiveData = CompressLiveData<File>()
-    // 多个文件订阅监听
-    private var mMultiLiveData = CompressLiveData<MutableList<File>>()
+    private var mCompressLiveData = CompressLiveData<T, R>()
+
     //压缩过滤器
-    private var mCompressionPredicate: ((InputStreamProvider<*>) -> Boolean) = { true }
-    //元数据集合
-    private val mStreamProviders: MutableList<InputStreamProvider<*>> = ArrayList()
+    private var mCompressionPredicate: ((T) -> Boolean) = { true }
 
-    fun <T> load(inputStreamProvider: InputStreamProvider<T>): Luban {
-        mStreamProviders.add(inputStreamProvider)
+
+    fun filter(predicate: (T) -> Boolean): Builder<T, R> {
+        mCompressionPredicate = predicate
         return this
     }
 
-    fun load(file: File): Luban {
-        mStreamProviders.add(object : InputStreamAdapter<File>() {
-            @Throws(IOException::class)
-            override fun openInternal(): InputStream {
-                return FileInputStream(file)
-            }
-
-            override val src: File
-                get() = file
-        })
-        return this
-    }
-
-    fun load(string: String): Luban {
-        mStreamProviders.add(object : InputStreamAdapter<String>() {
-            @Throws(IOException::class)
-            override fun openInternal(): InputStream {
-                return FileInputStream(string)
-            }
-
-            override val src: String
-                get() = string
-        })
-        return this
-    }
-
-    fun load(uri: Uri): Luban {
-        mStreamProviders.add(object : InputStreamAdapter<Uri>() {
-            @Throws(IOException::class)
-            override fun openInternal(): InputStream {
-                return Checker.context.contentResolver.openInputStream(uri)!!
-            }
-
-            override val src: Uri
-                get() = uri
-        })
-        return this
-    }
-
-    fun <T> load(vararg list: T): Luban {
-        for (src in list) {
-            if (src is String) {
-                load(src as String)
-            } else if (src is File) {
-                load(src as File)
-            } else if (src is Uri) {
-                load(src as Uri)
-            } else {
-                throw IllegalArgumentException("Incoming data type exception, it must be String, File, Uri")
-            }
-        }
-        return this
-    }
-
-    fun rename(rename: ((String) -> String)?): Luban {
+    fun rename(rename: ((String) -> String)?): Builder<T, R> {
         mRenamePredicate = rename
-        return this
-    }
-
-    /**
-     * 多文件压缩回调
-     */
-    fun observerMultiCompress(compressResult: CompressResult<MutableList<File>>.() -> Unit): Luban {
-        mMultiLiveData.compressObserver(owner, compressResult)
         return this
     }
 
     /**
      * 单个文件压缩回调,多文件压缩设置此回调,会多次调用 onSuccess(..)
      */
-    fun observerCompress(compressResult: CompressResult<File>.() -> Unit): Luban {
-        mSingleLiveData.compressObserver(owner, compressResult)
+    fun compressObserver(compressResult: CompressResult<T, R>.() -> Unit): Builder<T, R> {
+        mCompressLiveData.compressObserver(owner, compressResult)
         return this
     }
 
-    fun setOutPutDir(outPutDir: String?): Luban {
+    fun setOutPutDir(outPutDir: String?): Builder<T, R> {
         mOutPutDir = outPutDir
         return this
     }
@@ -153,7 +155,7 @@ class Luban private constructor(private val owner: LifecycleOwner) {
     /**
      * 压缩后输出图片格式 只有3种支持,默认自动根据原图获取
      */
-    fun format(compressFormat: CompressFormat): Luban {
+    fun format(compressFormat: CompressFormat): Builder<T, R> {
         mCompressFormat = compressFormat
         return this
     }
@@ -162,13 +164,13 @@ class Luban private constructor(private val owner: LifecycleOwner) {
      * 是否使用下采样压缩,如果不使用则使用双线性压缩方式
      * 默认使用向下采样压缩
      */
-    fun useDownSample(compress4Sample: Boolean): Luban {
+    fun useDownSample(compress4Sample: Boolean): Builder<T, R> {
         this.mCompress4Sample = compress4Sample
         return this
     }
 
     /**压缩质量0~100*/
-    fun quality(@IntRange(from = 1, to = 100) quality: Int): Luban {
+    fun quality(@IntRange(from = 1, to = 100) quality: Int): Builder<T, R> {
         bestQuality = quality
         return this
     }
@@ -176,54 +178,13 @@ class Luban private constructor(private val owner: LifecycleOwner) {
     /**
      * 大小忽略  默认 100kb
      */
-    fun ignoreBy(size: Long): Luban {
+    fun ignoreBy(size: Long): Builder<T, R> {
         mIgnoreSize = size
         return this
     }
 
-    /**
-     * do compress image when return value was true, otherwise, do not compress the image file
-     *
-     * @param predicate A predicate callback that returns true or false for the given input path should be compressed.
-     */
-    fun filter(predicate: (InputStreamProvider<*>) -> Boolean): Luban {
-        mCompressionPredicate = predicate
-        return this
-    }
-
-    /**
-     * begin compress image with asynchronous
-     */
-    fun launch() {
-        //开启协程
-        owner.lifecycleScope.launch {
-            val files = mutableListOf<File>()
-            flow {
-                mStreamProviders.forEach {
-                    val result = compress(it)
-                    emit(result)
-                }
-            }.flowOn(Dispatchers.Default).buffer().onStart {
-                mSingleLiveData.value = State.Start
-                mMultiLiveData.value = State.Start
-            }.onCompletion {
-                mSingleLiveData.value = State.Completion
-                //全部发送
-                mMultiLiveData.value = State.Success(files)
-                mMultiLiveData.value = State.Completion
-            }.catch {
-                mSingleLiveData.value = State.Error(it)
-                mMultiLiveData.value = State.Error(it)
-            }.collect {
-                files.add(it)
-                mSingleLiveData.value = State.Success(it)
-            }
-        }
-    }
-
-    @WorkerThread
     @Throws(IOException::class)
-    private suspend fun compress(stream: InputStreamProvider<*>): File {
+    protected suspend fun compress(stream: InputStreamProvider<T>): File {
         if (mOutPutDir.isNullOrEmpty()) {
             throw IOException("mOutPutDir cannot be null or check permissions")
         }
@@ -245,7 +206,7 @@ class Luban private constructor(private val owner: LifecycleOwner) {
         val decodeConfig = if (type.hasAlpha) Bitmap.Config.ARGB_8888 else Bitmap.Config.RGB_565
 
         //判断过滤器 开始压缩
-        return if (mCompressionPredicate.invoke(stream) && mIgnoreSize < length) {
+        return if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length) {
             CompressEngine(stream, outFile, mCompress4Sample, mIgnoreSize, bestQuality, format, decodeConfig).compress()
         } else {
             //copy文件到临时文件
@@ -258,55 +219,49 @@ class Luban private constructor(private val owner: LifecycleOwner) {
 
     //同步方法对外提供
     @Throws(IOException::class)
-    suspend fun get(index: Int = 0): File {
-        val it = mStreamProviders.removeAt(index)
-        return try {
-            compress(it)
-        } finally {
-            it.close()
+    abstract fun get(): R
+
+    //异步方法
+    protected abstract fun toFlow(): Flow<R>
+
+    /**
+     * begin compress image with asynchronous
+     */
+    fun launch() {
+        //开启协程
+        owner.lifecycleScope.launch {
+            toFlow().flowOn(Dispatchers.Default)
+                    .onStart {
+                        mCompressLiveData.value = State.Start
+                    }.onCompletion {
+                        mCompressLiveData.value = State.Completion
+                    }.catch {
+                        mCompressLiveData.value = State.Error(it)
+                    }.collect {
+                        mCompressLiveData.value = State.Success(it)
+                    }
         }
     }
 
-//    inner class Builder constructor(private val context: Context) {
-//   要不要用 build 模式困惑
-//    }
 }
 
-@MainThread
-fun <R> CompressLiveData<R>.compressObserver(owner: LifecycleOwner,
-                                             compressResult: CompressResult<R>.() -> Unit
-) {
-    val result = CompressResult<R>();result.compressResult()
-    observe(owner, androidx.lifecycle.Observer {
-        when (it) {
-            is State.Start -> {
-                result.onStart()
-            }
-            is State.Completion -> {
-                result.onCompletion()
-            }
-            is State.Success -> {
-                result.onSuccess(it.data)
-            }
-            is State.Error -> {
-                result.onError(it.error, it.file)
-            }
-        }
-    })
+private class SingleRequestBuild<T>(owner: LifecycleOwner, val provider: InputStreamAdapter<T>) : Builder<T, File>(owner) {
+    override fun get(): File = runBlocking {
+        compress(provider)
+    }
+
+    override fun toFlow(): Flow<File> = flow {
+        emit(compress(provider))
+    }
 }
 
-class CompressResult<R> {
-    var onStart: () -> Unit = {}
-    var onCompletion: () -> Unit = {}
-    var onSuccess: (data: R) -> Unit = {}
-    var onError: (Throwable, File?) -> Unit = { _: Throwable, _: File? -> }
-}
+private class MultiRequestBuild<T>(owner: LifecycleOwner, val providers: MutableList<InputStreamProvider<T>>) : Builder<T, MutableList<File>>(owner) {
+    override fun get(): MutableList<File> = runBlocking {
+        providers.map { compress(it) }.toMutableList()
+    }
 
-sealed class State<out R> {
-    object Start : State<Nothing>()
-    object Completion : State<Nothing>()
-    data class Success<out R>(val data: R) : State<R>()
-    data class Error(val error: Throwable, val file: File? = null) : State<Nothing>()
-}
+    override fun toFlow(): Flow<MutableList<File>> = flow {
+        emit(providers.map { compress(it) }.toMutableList())
+    }
 
-typealias CompressLiveData<R> = MutableLiveData<State<R>>
+}

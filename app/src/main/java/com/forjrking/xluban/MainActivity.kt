@@ -69,15 +69,18 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 println("collect:$it  " + Thread.currentThread().name)
             }
         }
-
+        val path: String = "D://t.jpg"
+        val file: File = File("D://t.jpg")
+        val uri: Uri = Uri.fromFile(file)
         //美如画
-        Luban2.with(this)
-                .load("a")
+        Luban.with(this)
+                .load(uri, uri)
                 .filter { true }
                 .compressObserver {
                     onSuccess = { }
                     onStart = {}
                     onCompletion = {}
+                    onError = { e, s -> }
                 }.launch()
 
     }
@@ -95,7 +98,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                             it
                         }.filter {
                             true
-                        }.observerCompress {
+                        }.compressObserver {
                             onStart = {
                                 Log.d(TAG, "onStart: ")
                             }
