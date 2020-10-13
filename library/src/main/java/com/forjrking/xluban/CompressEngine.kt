@@ -5,6 +5,8 @@ import android.graphics.Bitmap.CompressFormat
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.util.Log
+import androidx.annotation.MainThread
+import androidx.annotation.WorkerThread
 import com.forjrking.xluban.Checker.TAG
 import com.forjrking.xluban.io.ArrayProvide
 import com.forjrking.xluban.io.InputStreamProvider
@@ -41,7 +43,7 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
                                  private val quality: Int, private val compressFormat: CompressFormat,
                                  private val compressConfig: Bitmap.Config) {
 
-
+    @WorkerThread
     @Throws(IOException::class)
     suspend fun compress(): File {
         //获取jpeg旋转角度

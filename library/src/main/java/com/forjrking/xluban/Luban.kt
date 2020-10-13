@@ -6,6 +6,7 @@ import android.graphics.Bitmap.CompressFormat
 import android.net.Uri
 import androidx.annotation.IntRange
 import androidx.annotation.MainThread
+import androidx.annotation.WorkerThread
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.LifecycleOwner
@@ -223,7 +224,7 @@ class Luban private constructor(private val owner: LifecycleOwner) {
                     val result = compress(it)
                     emit(result)
                 }
-            }.flowOn(Dispatchers.Default).onStart {
+            }.flowOn(Dispatchers.Default).buffer().onStart {
                 mSingleLiveData.value = State.Start
                 mMultiLiveData.value = State.Start
             }.onCompletion {
@@ -241,6 +242,7 @@ class Luban private constructor(private val owner: LifecycleOwner) {
         }
     }
 
+    @WorkerThread
     @Throws(IOException::class)
     private suspend fun compress(stream: InputStreamProvider<*>): File {
         if (mOutPutDir.isNullOrEmpty()) {
