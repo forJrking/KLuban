@@ -3,12 +3,13 @@ package com.forjrking.xluban.io
 import com.forjrking.xluban.Checker.MARK_READ_LIMIT
 import java.io.IOException
 import java.io.InputStream
+import kotlin.jvm.Throws
 
 /**
  * Automatically close the previous InputStream when opening a new InputStream,
  * and finally need to manually call [.close] to release the resource.
  */
-abstract class InputStreamAdapter : InputStreamProvider {
+abstract class InputStreamAdapter<T> : InputStreamProvider<T> {
 
     // We don't check is.markSupported() here because RecyclableBufferedInputStream allows resetting
     // after exceeding MARK_READ_LIMIT, which other InputStreams don't guarantee.

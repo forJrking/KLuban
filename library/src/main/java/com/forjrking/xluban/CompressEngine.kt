@@ -12,6 +12,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import kotlin.jvm.Throws
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -35,17 +36,14 @@ import kotlin.math.min
  * @Version: 1.0.0
  * <lp>
 </lp> */
-class CompressEngine constructor(private val srcStream: InputStreamProvider, private val resFile: File,
-                                 private val compress4Sample: Boolean, private val maxSize: Int,
+class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, private val resFile: File,
+                                 private val compress4Sample: Boolean, private val rqSize: Long,
                                  private val quality: Int, private val compressFormat: CompressFormat,
                                  private val compressConfig: Bitmap.Config) {
 
 
     @Throws(IOException::class)
     suspend fun compress(): File {
-        var quality = quality
-        //预期压缩的期望大小
-        val rqSize = maxSize.toLong()
         //获取jpeg旋转角度
         val angle = Checker.getOrientation(srcStream.rewindAndGet())
         //解析Bitmap
@@ -74,11 +72,12 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider, pri
         val isAlpha = compressConfig == Bitmap.Config.ARGB_8888
         if (!hasEnoughMemory(width / options.inSampleSize, height / options.inSampleSize, isAlpha)) {
             //TODO 内存不足使用
-            Log.w(TAG, "memory warring 降低位图像素")
-            options.inPreferredConfig = Bitmap.Config.RGB_565
             //减低像素 减低内存
-            if (!hasEnoughMemory(width / options.inSampleSize, height / options.inSampleSize, false)) {
+            if (!isAlpha || !hasEnoughMemory(width / options.inSampleSize, height / options.inSampleSize, false)) {
                 throw IOException("image memory is too large")
+            } else {
+                Log.w(TAG, "memory warring 降低位图像素")
+                options.inPreferredConfig = Bitmap.Config.RGB_565
             }
         }
         //加载入内存中
@@ -99,11 +98,12 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider, pri
             bitmap.compress(compressFormat, quality, stream)
             //PNG等无损格式不支持压缩
             if (compressFormat != CompressFormat.PNG) {
-                //耗时由此处触发
-                while (stream.size() / 1024 > rqSize && quality > 6) {
+                var tempQuality = quality
+                //耗时由此处触发 每次降低6个点
+                while (stream.size() / 1024 > rqSize && tempQuality > 6) {
                     stream.reset()
-                    quality -= 6
-                    bitmap.compress(compressFormat, quality, stream)
+                    tempQuality -= 6
+                    bitmap.compress(compressFormat, tempQuality, stream)
                 }
             }
         } finally {

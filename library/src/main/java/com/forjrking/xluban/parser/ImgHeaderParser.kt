@@ -1,7 +1,9 @@
 package com.forjrking.xluban.parser
 
+import android.graphics.Bitmap
 import java.io.IOException
 import java.io.InputStream
+import kotlin.jvm.Throws
 
 /** Interface for the ImageHeaderParser.  */
 interface ImgHeaderParser {
@@ -32,33 +34,26 @@ interface ImgHeaderParser {
 /**
  * The format of the image data including whether or not the image may include transparent pixels.
  */
-enum class ImageType(private val img: String, private val hasAlpha: Boolean) {
+enum class ImageType(val suffix: String, val hasAlpha: Boolean, val format: Bitmap.CompressFormat) {
 
-    GIF("gif", true),
-    JPEG("jpg", false),
-    RAW("raw", false),
+    GIF("gif", true, Bitmap.CompressFormat.PNG),
+    JPEG("jpg", false, Bitmap.CompressFormat.JPEG),
+    RAW("raw", false, Bitmap.CompressFormat.JPEG),
 
     /* PNG type with alpha.  */
-    PNG_A("png", true),
+    PNG_A("png", true, Bitmap.CompressFormat.PNG),
 
     /* PNG type without alpha.  */
-    PNG("png", false),
+    PNG("png", false, Bitmap.CompressFormat.PNG),
 
     /* WebP type with alpha.  */
-    WEBP_A("webp", true),
+    WEBP_A("webp", true, Bitmap.CompressFormat.WEBP),
 
     /* WebP type without alpha.  */
-    WEBP("webp", false),
+    WEBP("webp", false, Bitmap.CompressFormat.WEBP),
 
     /* Unrecognized type.  */
-    UNKNOWN("jpg", false);
+    UNKNOWN("unknown", false, Bitmap.CompressFormat.JPEG);
 
-    fun hasAlpha(): Boolean {
-        return hasAlpha
-    }
-
-    fun suffix(): String {
-        return img
-    }
 }
 
