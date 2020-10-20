@@ -3,6 +3,7 @@ package com.forjrking.xluban
 import android.app.Application
 import android.content.Context
 import android.os.Build
+import android.os.Process
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import com.forjrking.xluban.io.BufferedInputStreamWrap
@@ -13,6 +14,8 @@ import com.forjrking.xluban.parser.ImgHeaderParser
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import java.util.concurrent.ThreadFactory
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.jvm.Throws
 
 internal object Checker {
@@ -184,4 +187,38 @@ internal object Checker {
         throw IllegalStateException("reflect Context error,高版本废弃反射后建议自己赋值")
     }
 
+}
+
+/**
+ * @Des: android用的压缩线程池优化线程优先级
+ * @Version: 1.0.0
+ **/
+internal class CompressThreadFactory : ThreadFactory {
+    private val group: ThreadGroup
+    private val threadNumber = AtomicInteger(1)
+    private val namePrefix: String
+
+    companion object {
+        private val poolNumber = AtomicInteger(1)
+        private const val DEFAULT_PRIORITY = (Process.THREAD_PRIORITY_BACKGROUND
+                + Process.THREAD_PRIORITY_MORE_FAVORABLE)
+    }
+
+    init {
+        val s = System.getSecurityManager()
+        group = s?.threadGroup ?: Thread.currentThread().threadGroup!!
+        namePrefix = "LubanP-${poolNumber.getAndIncrement()}-thread-"
+    }
+
+    override fun newThread(r: Runnable): Thread {
+        val thread = object : Thread(group, r, namePrefix + threadNumber.getAndIncrement(), 0) {
+            override fun run() {
+                Process.setThreadPriority(DEFAULT_PRIORITY)
+                super.run()
+            }
+        }
+        if (thread.isDaemon) thread.isDaemon = false
+        if (thread.priority != Thread.NORM_PRIORITY) thread.priority = Thread.NORM_PRIORITY
+        return thread
+    }
 }

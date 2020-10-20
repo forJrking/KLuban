@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Bitmap.CompressFormat
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.os.Build
 import android.util.Log
 import androidx.annotation.WorkerThread
 import com.forjrking.xluban.Checker.TAG
@@ -72,7 +73,7 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
         //预判内存不足情况
         val isAlpha = compressConfig == Bitmap.Config.ARGB_8888
         if (!hasEnoughMemory(width / options.inSampleSize, height / options.inSampleSize, isAlpha)) {
-            //TODO 内存不足使用
+            //TODO 8.0一下内存不足使用降级策略
             //减低像素 减低内存
             if (!isAlpha || !hasEnoughMemory(width / options.inSampleSize, height / options.inSampleSize, false)) {
                 throw IOException("image memory is too large")
@@ -200,12 +201,14 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
     /**
      * 判断内存是否足够 32位每个像素占用4字节
      */
-    private fun hasEnoughMemory(width: Int, height: Int, isAlpha32: Boolean): Boolean {
-        val runtime = Runtime.getRuntime()
-        val free = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()
-        val allocation = width * height shl if (isAlpha32) 2 else 1
-        Log.d(TAG, "free : " + (free shr 20) + "MB, need : " + (allocation shr 20) + "MB")
-        return allocation < free
-    }
-
+    private fun hasEnoughMemory(width: Int, height: Int, isAlpha32: Boolean) =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                true
+            } else {
+                val runtime = Runtime.getRuntime()
+                val free = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()
+                val allocation = width * height shl if (isAlpha32) 2 else 1
+                Log.d(TAG, "free : " + (free shr 20) + "MB, need : " + (allocation shr 20) + "MB")
+                allocation < free
+            }
 }

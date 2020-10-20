@@ -3,6 +3,7 @@ package com.forjrking.xluban
 import android.graphics.Bitmap
 import android.graphics.Bitmap.CompressFormat
 import android.net.Uri
+import android.os.Build
 import androidx.annotation.IntRange
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
@@ -15,11 +16,12 @@ import com.forjrking.xluban.ext.State
 import com.forjrking.xluban.ext.compressObserver
 import com.forjrking.xluban.io.InputStreamAdapter
 import com.forjrking.xluban.io.InputStreamProvider
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import java.io.*
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import kotlin.jvm.Throws
 
 /**
@@ -184,8 +186,37 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
         return this
     }
 
+    companion object {
+        //主要作用用于并行执行时候可以限制执行任务个数 防止OOM
+        internal val supportDispatcher: ExecutorCoroutineDispatcher
+
+        init {
+//          Android O之后Bitmap内存放在native  https://www.jianshu.com/p/d5714e8987f3
+            val corePoolSize = when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O -> {
+                    /** DES: DES：取CPU核心数-1 代码来自协程内部 [kotlinx.coroutines.CommonPool.createPlainPool] */
+                    (Runtime.getRuntime().availableProcessors() - 1).coerceAtLeast(1)
+                }
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                    2
+                }
+                else -> {
+                    1
+                }
+            }
+            val threadPoolExecutor = ThreadPoolExecutor(corePoolSize, corePoolSize,
+                    5L, TimeUnit.SECONDS, LinkedBlockingQueue<Runnable>(), CompressThreadFactory())
+            // DES：预创建线程 threadPoolExecutor.prestartAllCoreThreads()
+            // DES：让核心线程也可以回收
+            threadPoolExecutor.allowCoreThreadTimeOut(true)
+            // DES：转换为协程调度器
+            supportDispatcher = threadPoolExecutor.asCoroutineDispatcher()
+        }
+    }
+
+    //挂起函数
     @Throws(IOException::class)
-    protected suspend fun compress(stream: InputStreamProvider<T>): File {
+    protected suspend fun compress(stream: InputStreamProvider<T>): File = withContext(Dispatchers.Main) {
         if (mOutPutDir.isNullOrEmpty()) {
             throw IOException("mOutPutDir cannot be null or check permissions")
         }
@@ -207,7 +238,7 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
         val decodeConfig = if (type.hasAlpha) Bitmap.Config.ARGB_8888 else Bitmap.Config.RGB_565
 
         //判断过滤器 开始压缩
-        return if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length) {
+        return@withContext if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length) {
             CompressEngine(stream, outFile, mCompress4Sample, mIgnoreSize, bestQuality, format, decodeConfig).compress()
         } else {
             //copy文件到临时文件
@@ -223,7 +254,7 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
     abstract fun get(): R
 
     //协程异步方法 发射数据到参数 liveData中
-    protected abstract suspend fun emit2LiveData(liveData: CompressLiveData<T, R>)
+    protected abstract suspend fun async(liveData: CompressLiveData<T, R>)
 
     /**
      * begin compress image with asynchronous
@@ -231,7 +262,7 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
     fun launch() {
         //开启协程
         owner.lifecycleScope.launch {
-            emit2LiveData(mCompressLiveData)
+            async(mCompressLiveData)
         }
     }
 
@@ -242,10 +273,10 @@ private class SingleRequestBuild<T>(owner: LifecycleOwner, val provider: InputSt
         compress(provider)
     }
 
-    override suspend fun emit2LiveData(liveData: CompressLiveData<T, File>) {
+    override suspend fun async(liveData: CompressLiveData<T, File>) {
         flow {
             emit(compress(provider))
-        }.flowOn(Dispatchers.Default)
+        }.flowOn(supportDispatcher)
                 .onStart {
                     liveData.value = State.Start
                 }.onCompletion {
@@ -265,11 +296,11 @@ private class MultiRequestBuild<T>(owner: LifecycleOwner, val providers: Mutable
     }
 
     /**并发方式一次2个任务 如果所有任务都下发内存OOM*/
-    override suspend fun emit2LiveData(liveData: CompressLiveData<T, List<File>>) {
+    override suspend fun async(liveData: CompressLiveData<T, List<File>>) {
         val toList = providers.asFlow()
                 .map { compress(it) }
-                .buffer(2)
-                .flowOn(Dispatchers.Default)
+                .buffer()
+                .flowOn(supportDispatcher)
                 .onStart {
                     liveData.value = State.Start
                 }.onCompletion {
