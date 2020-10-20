@@ -188,37 +188,3 @@ internal object Checker {
     }
 
 }
-
-/**
- * @Des: android用的压缩线程池优化线程优先级
- * @Version: 1.0.0
- **/
-internal class CompressThreadFactory : ThreadFactory {
-    private val group: ThreadGroup
-    private val threadNumber = AtomicInteger(1)
-    private val namePrefix: String
-
-    companion object {
-        private val poolNumber = AtomicInteger(1)
-        private const val DEFAULT_PRIORITY = (Process.THREAD_PRIORITY_BACKGROUND
-                + Process.THREAD_PRIORITY_MORE_FAVORABLE)
-    }
-
-    init {
-        val s = System.getSecurityManager()
-        group = s?.threadGroup ?: Thread.currentThread().threadGroup!!
-        namePrefix = "LubanP-${poolNumber.getAndIncrement()}-thread-"
-    }
-
-    override fun newThread(r: Runnable): Thread {
-        val thread = object : Thread(group, r, namePrefix + threadNumber.getAndIncrement(), 0) {
-            override fun run() {
-                Process.setThreadPriority(DEFAULT_PRIORITY)
-                super.run()
-            }
-        }
-        if (thread.isDaemon) thread.isDaemon = false
-        if (thread.priority != Thread.NORM_PRIORITY) thread.priority = Thread.NORM_PRIORITY
-        return thread
-    }
-}

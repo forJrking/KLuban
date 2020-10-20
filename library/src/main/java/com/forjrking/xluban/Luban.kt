@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Bitmap.CompressFormat
 import android.net.Uri
 import android.os.Build
+import android.os.Process
 import androidx.annotation.IntRange
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
@@ -20,8 +21,10 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.*
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.jvm.Throws
 
 /**
@@ -312,4 +315,38 @@ private class MultiRequestBuild<T>(owner: LifecycleOwner, val providers: Mutable
         liveData.value = State.Success(toList)
     }
 
+}
+
+/**
+ * @Des: android用的压缩线程池优化线程优先级
+ * @Version: 1.0.0
+ **/
+private class CompressThreadFactory : ThreadFactory {
+    private val group: ThreadGroup
+    private val threadNumber = AtomicInteger(1)
+    private val namePrefix: String
+
+    companion object {
+        private val poolNumber = AtomicInteger(1)
+        private const val DEFAULT_PRIORITY = (Process.THREAD_PRIORITY_BACKGROUND
+                + Process.THREAD_PRIORITY_MORE_FAVORABLE)
+    }
+
+    init {
+        val s = System.getSecurityManager()
+        group = s?.threadGroup ?: Thread.currentThread().threadGroup!!
+        namePrefix = "LubanP-${poolNumber.getAndIncrement()}-thread-"
+    }
+
+    override fun newThread(r: java.lang.Runnable): Thread {
+        val thread = object : Thread(group, r, namePrefix + threadNumber.getAndIncrement(), 0) {
+            override fun run() {
+                Process.setThreadPriority(DEFAULT_PRIORITY)
+                super.run()
+            }
+        }
+        if (thread.isDaemon) thread.isDaemon = false
+        if (thread.priority != Thread.NORM_PRIORITY) thread.priority = Thread.NORM_PRIORITY
+        return thread
+    }
 }
