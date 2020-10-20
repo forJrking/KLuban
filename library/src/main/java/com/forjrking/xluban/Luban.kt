@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.*
+import kotlin.jvm.Throws
 
 /**
  * @description:
@@ -67,7 +68,7 @@ class Luban private constructor(private val owner: LifecycleOwner) {
         return SingleRequestBuild(owner, provider)
     }
 
-    fun <T> load(vararg list: T): Builder<T, MutableList<File>> {
+    fun <T> load(vararg list: T): Builder<T, List<File>> {
         val providers: MutableList<InputStreamProvider<T>> = ArrayList()
         list.forEach {
             providers.add(object : InputStreamAdapter<T>() {
@@ -221,8 +222,8 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
     @Throws(IOException::class)
     abstract fun get(): R
 
-    //异步方法
-    protected abstract fun toFlow(): Flow<R>
+    //协程异步方法 发射数据到参数 liveData中
+    protected abstract suspend fun emit2LiveData(liveData: CompressLiveData<T, R>)
 
     /**
      * begin compress image with asynchronous
@@ -230,16 +231,7 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
     fun launch() {
         //开启协程
         owner.lifecycleScope.launch {
-            toFlow().flowOn(Dispatchers.Default)
-                    .onStart {
-                        mCompressLiveData.value = State.Start
-                    }.onCompletion {
-                        mCompressLiveData.value = State.Completion
-                    }.catch {
-                        mCompressLiveData.value = State.Error(it)
-                    }.collect {
-                        mCompressLiveData.value = State.Success(it)
-                    }
+            emit2LiveData(mCompressLiveData)
         }
     }
 
@@ -250,18 +242,43 @@ private class SingleRequestBuild<T>(owner: LifecycleOwner, val provider: InputSt
         compress(provider)
     }
 
-    override fun toFlow(): Flow<File> = flow {
-        emit(compress(provider))
+    override suspend fun emit2LiveData(liveData: CompressLiveData<T, File>) {
+        flow {
+            emit(compress(provider))
+        }.flowOn(Dispatchers.Default)
+                .onStart {
+                    liveData.value = State.Start
+                }.onCompletion {
+                    liveData.value = State.Completion
+                }.catch {
+                    liveData.value = State.Error(it)
+                }.collect {
+                    liveData.value = State.Success(it)
+                }
     }
 }
 
-private class MultiRequestBuild<T>(owner: LifecycleOwner, val providers: MutableList<InputStreamProvider<T>>) : Builder<T, MutableList<File>>(owner) {
+private class MultiRequestBuild<T>(owner: LifecycleOwner, val providers: MutableList<InputStreamProvider<T>>) : Builder<T, List<File>>(owner) {
+    /**一次获取所有而且是顺序压缩*/
     override fun get(): MutableList<File> = runBlocking {
         providers.map { compress(it) }.toMutableList()
     }
 
-    override fun toFlow(): Flow<MutableList<File>> = flow {
-        emit(providers.map { compress(it) }.toMutableList())
+    /**并发方式一次2个任务 如果所有任务都下发内存OOM*/
+    override suspend fun emit2LiveData(liveData: CompressLiveData<T, List<File>>) {
+        val toList = providers.asFlow()
+                .map { compress(it) }
+                .buffer(2)
+                .flowOn(Dispatchers.Default)
+                .onStart {
+                    liveData.value = State.Start
+                }.onCompletion {
+                    liveData.value = State.Completion
+                }.catch {
+                    liveData.value = State.Error(it)
+                }.toList()
+
+        liveData.value = State.Success(toList)
     }
 
 }
