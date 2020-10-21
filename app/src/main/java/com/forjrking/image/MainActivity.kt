@@ -54,35 +54,19 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             override fun onBitmapSaveError(file: File) {}
         })
 
-        lifecycleScope.launch {
-            flow {
-                (1..5).forEach {
-                    println("emit:" + Thread.currentThread().name)
-                    emit(it)
-                }
-            }.buffer(Channel.UNLIMITED).flowOn(Dispatchers.Default).onStart {
-                println("onStart:" + Thread.currentThread().name)
-            }.onCompletion {
-                println("onCompletion:" + Thread.currentThread().name)
-            }.catch {
-                println("catch:" + Thread.currentThread().name)
-            }.collect {
-                println("collect:$it  " + Thread.currentThread().name)
-            }
-        }
-        val path: String = "D://t.jpg"
-        val file: File = File("D://t.jpg")
-        val uri: Uri = Uri.fromFile(file)
-        //美如画
-        Luban.with(this)
-                .load(uri, uri)
-                .filter { true }
-                .compressObserver {
-                    onSuccess = { }
-                    onStart = {}
-                    onCompletion = {}
-                    onError = { e, s -> }
-                }.launch()
+//        val path: String = "D://t.jpg"
+//        val file: File = File("D://t.jpg")
+//        val uri: Uri = Uri.fromFile(file)
+//        //美如画
+//        Luban.with(this)
+//                .load(uri, uri)
+//                .filter { true }
+//                .compressObserver {
+//                    onSuccess = { }
+//                    onStart = {}
+//                    onCompletion = {}
+//                    onError = { e, s -> }
+//                }.launch()
 
     }
 
@@ -93,15 +77,10 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
                 Luban.with(this)
                         .load(item.uri)
-                        .useDownSample(true)
-                        .rename {
-                            Log.d(TAG, "rename: $it")
-                            it
-                        }.filter {
-                            true
-                        }.compressObserver {
+                        .useDownSample(false)
+                        .compressObserver {
                             onStart = {
-                                Log.d(TAG, "onStart: ")
+                                //Log.d(TAG, "onStart: ")
                             }
                             onCompletion = {
                                 Log.d(TAG, "onCompletion")
@@ -137,7 +116,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     }
 
     companion object {
-        const val TAG = "MainActivity"
+        const val TAG = "Luban"
         private const val IMAGE_PICKER = 1001
     }
 }

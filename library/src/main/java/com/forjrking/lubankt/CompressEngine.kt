@@ -5,9 +5,7 @@ import android.graphics.Bitmap.CompressFormat
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Build
-import android.util.Log
 import androidx.annotation.WorkerThread
-import com.forjrking.lubankt.Checker.TAG
 import com.forjrking.lubankt.io.ArrayProvide
 import com.forjrking.lubankt.io.InputStreamProvider
 import java.io.ByteArrayOutputStream
@@ -67,7 +65,7 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
             options.inSampleSize = 1
             computeScaleSize(width, height)
         }
-        Log.d(TAG, "scale :$scale,inSampleSize :${options.inSampleSize}")
+        Checker.logger("scale :$scale,inSampleSize :${options.inSampleSize}")
         // 指定图片 ARGB 或者RGB
         options.inPreferredConfig = compressConfig
         //预判内存不足情况
@@ -78,7 +76,7 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
             if (!isAlpha || !hasEnoughMemory(width / options.inSampleSize, height / options.inSampleSize, false)) {
                 throw IOException("image memory is too large")
             } else {
-                Log.w(TAG, "memory warring 降低位图像素")
+                Checker.logger("memory warring 降低位图像素")
                 options.inPreferredConfig = Bitmap.Config.RGB_565
             }
         }
@@ -102,16 +100,18 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
             if (compressFormat != CompressFormat.PNG) {
                 var tempQuality = quality
                 //耗时由此处触发 每次降低6个点
-                while (stream.size() / 1024 > rqSize && tempQuality > 6) {
+                while (stream.size() / 1024 > (rqSize * scale) && tempQuality > 6) {
                     stream.reset()
                     tempQuality -= 6
                     bitmap.compress(compressFormat, tempQuality, stream)
                 }
+                Checker.logger( "真实输出质量$tempQuality")
             }
         } finally {
             //位图释放
             bitmap.recycle()
             ArrayProvide.put(bytes4Option)
+            Checker.logger("真实输出大小:${stream.size()}")
         }
         //输出文件
         stream.use { bos ->
@@ -208,7 +208,7 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
                 val runtime = Runtime.getRuntime()
                 val free = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()
                 val allocation = width * height shl if (isAlpha32) 2 else 1
-                Log.d(TAG, "free : " + (free shr 20) + "MB, need : " + (allocation shr 20) + "MB")
+                Checker.logger("free : " + (free shr 20) + "MB, need : " + (allocation shr 20) + "MB")
                 allocation < free
             }
 }

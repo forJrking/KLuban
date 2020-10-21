@@ -5,12 +5,14 @@ import android.graphics.Bitmap.CompressFormat
 import android.net.Uri
 import android.os.Build
 import android.os.Process
+import android.util.Log
 import androidx.annotation.IntRange
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import com.forjrking.lubankt.Checker.TAG
 import com.forjrking.lubankt.ext.CompressLiveData
 import com.forjrking.lubankt.ext.CompressResult
 import com.forjrking.lubankt.ext.State
@@ -251,7 +253,7 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
         val format = mCompressFormat ?: type.format
         //图片是否带有透明层
         val decodeConfig = if (type.hasAlpha) Bitmap.Config.ARGB_8888 else Bitmap.Config.RGB_565
-
+        Checker.logger("源大小:$length 类型:$type 透明层:${type.hasAlpha} 期望质量:${bestQuality} 输出文件:$outFile 输出格式:$format")
         //判断过滤器 开始压缩
         return@withContext if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length) {
             CompressEngine(stream, outFile, mCompress4Sample, mIgnoreSize, bestQuality, format, decodeConfig).compress()

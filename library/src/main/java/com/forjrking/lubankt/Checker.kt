@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.os.Build
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.WindowManager
 import com.forjrking.lubankt.io.BufferedInputStreamWrap
 import com.forjrking.lubankt.parser.DefaultImgHeaderParser
@@ -182,6 +183,10 @@ internal object Checker {
             e.printStackTrace()
         }
         throw IllegalStateException("reflect Context error,高版本废弃反射后建议自己赋值")
+    }
+
+    fun logger(log: String) {
+        Log.d(TAG, log)
     }
 
 }
