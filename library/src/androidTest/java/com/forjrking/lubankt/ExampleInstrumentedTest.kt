@@ -1,4 +1,4 @@
-package com.forjrking.xluban
+package com.forjrking.lubankt
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

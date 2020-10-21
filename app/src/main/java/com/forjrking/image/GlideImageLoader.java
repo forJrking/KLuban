@@ -1,4 +1,4 @@
-package com.forjrking.xluban;
+package com.forjrking.image;
 
 /*
  * @创建者     Jrking

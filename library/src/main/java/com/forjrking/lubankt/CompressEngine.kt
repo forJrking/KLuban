@@ -1,4 +1,4 @@
-package com.forjrking.xluban
+package com.forjrking.lubankt
 
 import android.graphics.Bitmap
 import android.graphics.Bitmap.CompressFormat
@@ -7,9 +7,9 @@ import android.graphics.Matrix
 import android.os.Build
 import android.util.Log
 import androidx.annotation.WorkerThread
-import com.forjrking.xluban.Checker.TAG
-import com.forjrking.xluban.io.ArrayProvide
-import com.forjrking.xluban.io.InputStreamProvider
+import com.forjrking.lubankt.Checker.TAG
+import com.forjrking.lubankt.io.ArrayProvide
+import com.forjrking.lubankt.io.InputStreamProvider
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream

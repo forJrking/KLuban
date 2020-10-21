@@ -1,4 +1,4 @@
-package com.forjrking.xluban.io;
+package com.forjrking.lubankt.io;
 
 import java.io.FilterInputStream;
 import java.io.IOException;

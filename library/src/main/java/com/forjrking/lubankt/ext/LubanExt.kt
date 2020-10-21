@@ -1,4 +1,4 @@
-package com.forjrking.xluban.ext
+package com.forjrking.lubankt.ext
 
 import androidx.annotation.MainThread
 import androidx.lifecycle.LifecycleOwner

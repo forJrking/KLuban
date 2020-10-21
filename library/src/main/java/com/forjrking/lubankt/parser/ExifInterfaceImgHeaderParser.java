@@ -1,6 +1,7 @@
-package com.forjrking.xluban.parser;
+package com.forjrking.lubankt.parser;
 
 import androidx.exifinterface.media.ExifInterface;
+
 import java.io.IOException;
 import java.io.InputStream;
 

@@ -1,6 +1,6 @@
-package com.forjrking.xluban.io
+package com.forjrking.lubankt.io
 
-import com.forjrking.xluban.Checker
+import com.forjrking.lubankt.Checker
 
 
 /**

@@ -1,4 +1,4 @@
-package com.forjrking.xluban.parser
+package com.forjrking.lubankt.parser
 
 import android.graphics.Bitmap
 import java.io.IOException

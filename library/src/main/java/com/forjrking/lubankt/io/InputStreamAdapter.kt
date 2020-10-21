@@ -1,6 +1,6 @@
-package com.forjrking.xluban.io
+package com.forjrking.lubankt.io
 
-import com.forjrking.xluban.Checker.MARK_READ_LIMIT
+import com.forjrking.lubankt.Checker.MARK_READ_LIMIT
 import java.io.IOException
 import java.io.InputStream
 import kotlin.jvm.Throws

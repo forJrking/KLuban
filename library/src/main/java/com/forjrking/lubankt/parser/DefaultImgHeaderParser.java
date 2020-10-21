@@ -1,9 +1,8 @@
-package com.forjrking.xluban.parser;
+package com.forjrking.lubankt.parser;
 
 import android.util.Log;
 
-import com.forjrking.xluban.io.ArrayProvide;
-
+import com.forjrking.lubankt.io.ArrayProvide;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;

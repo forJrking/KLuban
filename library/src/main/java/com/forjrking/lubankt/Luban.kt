@@ -1,4 +1,4 @@
-package com.forjrking.xluban
+package com.forjrking.lubankt
 
 import android.graphics.Bitmap
 import android.graphics.Bitmap.CompressFormat
@@ -11,12 +11,12 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
-import com.forjrking.xluban.ext.CompressLiveData
-import com.forjrking.xluban.ext.CompressResult
-import com.forjrking.xluban.ext.State
-import com.forjrking.xluban.ext.compressObserver
-import com.forjrking.xluban.io.InputStreamAdapter
-import com.forjrking.xluban.io.InputStreamProvider
+import com.forjrking.lubankt.ext.CompressLiveData
+import com.forjrking.lubankt.ext.CompressResult
+import com.forjrking.lubankt.ext.State
+import com.forjrking.lubankt.ext.compressObserver
+import com.forjrking.lubankt.io.InputStreamAdapter
+import com.forjrking.lubankt.io.InputStreamProvider
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.*
@@ -25,6 +25,7 @@ import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.jvm.Throws
 
 /**
@@ -107,20 +108,22 @@ class Luban private constructor(private val owner: LifecycleOwner) {
 private const val DEFAULT_DISK_CACHE_DIR = "luban_disk_cache"
 
 /** DES: T 表示源数据 R表示生成结果 */
-@Suppress("BlockingMethodInNonBlockingContext")
 abstract class Builder<T, R>(private val owner: LifecycleOwner) {
 
     //质量压缩质量系数 0~100 无损压缩无用
-    private var bestQuality = Checker.calculateQuality(Checker.context)
+    protected var bestQuality = Checker.calculateQuality(Checker.context)
 
     //输出目录
-    private var mOutPutDir: String? = Checker.getCacheDir(Checker.context, DEFAULT_DISK_CACHE_DIR)?.absolutePath
+    protected var mOutPutDir: String? = Checker.getCacheDir(Checker.context, DEFAULT_DISK_CACHE_DIR)?.absolutePath
 
     // 使用采样率压缩 or 双线性压缩
-    private var mCompress4Sample = true
+    protected var mCompress4Sample = true
+
+    //使用并发
+    protected var mUseConcurrent = true
 
     // 忽略压缩大小
-    private var mIgnoreSize = 100 * 1024L
+    protected var mIgnoreSize = 100 * 1024L
 
     //输出格式
     private var mCompressFormat: CompressFormat? = null
@@ -177,7 +180,7 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
 
     /**压缩质量0~100*/
     fun quality(@IntRange(from = 1, to = 100) quality: Int): Builder<T, R> {
-        bestQuality = quality
+        this.bestQuality = quality
         return this
     }
 
@@ -185,7 +188,16 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
      * 大小忽略  默认 100kb
      */
     fun ignoreBy(size: Long): Builder<T, R> {
-        mIgnoreSize = size
+        this.mIgnoreSize = size
+        return this
+    }
+
+    /**
+     * 多文件有用,单文件请忽略,开启并行,高效压缩 默认开启
+     * @see supportDispatcher 最终是否能并行与系统版本有关请查看 corePoolSize生成
+     */
+    fun concurrent(useConcurrent: Boolean): Builder<T, R> {
+        this.mUseConcurrent = useConcurrent
         return this
     }
 
@@ -219,7 +231,7 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
 
     //挂起函数
     @Throws(IOException::class)
-    protected suspend fun compress(stream: InputStreamProvider<T>): File = withContext(Dispatchers.Main) {
+    protected suspend fun compress(stream: InputStreamProvider<T>): File = withContext(supportDispatcher) {
         if (mOutPutDir.isNullOrEmpty()) {
             throw IOException("mOutPutDir cannot be null or check permissions")
         }
@@ -230,7 +242,7 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
         //组合一个名字给输出文件
         val cacheFile = "$mOutPutDir/${System.nanoTime()}.${type.suffix}"
         val outFile = if (mRenamePredicate != null) {
-//            重命名
+//          重命名
             File(mRenamePredicate!!.invoke(cacheFile))
         } else {
             File(cacheFile)
@@ -257,64 +269,79 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
     abstract fun get(): R
 
     //协程异步方法 发射数据到参数 liveData中
-    protected abstract suspend fun async(liveData: CompressLiveData<T, R>)
+    protected abstract fun asyncRun(scope: CoroutineScope, liveData: CompressLiveData<T, R>)
 
     /**
      * begin compress image with asynchronous
      */
     fun launch() {
         //开启协程
-        owner.lifecycleScope.launch {
-            async(mCompressLiveData)
-        }
+        asyncRun(owner.lifecycleScope, mCompressLiveData)
     }
 
 }
 
+/**
+ * @Des: 用于单个文件压缩
+ **/
 private class SingleRequestBuild<T>(owner: LifecycleOwner, val provider: InputStreamAdapter<T>) : Builder<T, File>(owner) {
     override fun get(): File = runBlocking {
         compress(provider)
     }
 
-    override suspend fun async(liveData: CompressLiveData<T, File>) {
-        flow {
-            emit(compress(provider))
-        }.flowOn(supportDispatcher)
-                .onStart {
-                    liveData.value = State.Start
-                }.onCompletion {
-                    liveData.value = State.Completion
-                }.catch {
-                    liveData.value = State.Error(it)
-                }.collect {
-                    liveData.value = State.Success(it)
-                }
+    @ExperimentalCoroutinesApi
+    override fun asyncRun(scope: CoroutineScope, liveData: CompressLiveData<T, File>) {
+        scope.launch {
+            flow {
+                emit(compress(provider))
+            }.flowOn(supportDispatcher)
+                    .onStart {
+                        liveData.value = State.Start
+                    }.onCompletion {
+                        liveData.value = State.Completion
+                    }.catch {
+                        //报错后将传出去
+                        liveData.value = State.Error(it, provider.src)
+                    }.collect {
+                        liveData.value = State.Success(it)
+                    }
+        }
     }
 }
 
 private class MultiRequestBuild<T>(owner: LifecycleOwner, val providers: MutableList<InputStreamProvider<T>>) : Builder<T, List<File>>(owner) {
+
     /**一次获取所有而且是顺序压缩*/
     override fun get(): MutableList<File> = runBlocking {
         providers.map { compress(it) }.toMutableList()
     }
 
-    /**并发方式一次2个任务 如果所有任务都下发内存OOM*/
-    override suspend fun async(liveData: CompressLiveData<T, List<File>>) {
-        val toList = providers.asFlow()
-                .map { compress(it) }
-                .buffer()
-                .flowOn(supportDispatcher)
-                .onStart {
-                    liveData.value = State.Start
-                }.onCompletion {
-                    liveData.value = State.Completion
-                }.catch {
-                    liveData.value = State.Error(it)
-                }.toList()
-
-        liveData.value = State.Success(toList)
+    /**并发方式一次2或者多个个任务 如果所有任务都下发内存OOM*/
+    @ExperimentalCoroutinesApi
+    override fun asyncRun(scope: CoroutineScope, liveData: CompressLiveData<T, List<File>>) {
+//      并行和串行处理 让async和挂起函数保持同一个调度就会串行
+        val dispatchers = if (mUseConcurrent) EmptyCoroutineContext else supportDispatcher
+        scope.launch {
+            val result = ArrayList<File>()
+            providers.asFlow().map {
+                async(dispatchers) {
+                    compress(it)
+                }
+            }.flowOn(Dispatchers.Default).map {
+                it.await()
+            }.buffer().onStart {
+                liveData.value = State.Start
+            }.onCompletion {
+                liveData.value = State.Completion
+                if (it == null) liveData.value = State.Success(result)
+            }.onEach {
+                //排序好的结果收集
+                result.add(it)
+            }.catch {
+                liveData.value = State.Error(it)
+            }.collect()
+        }
     }
-
 }
 
 /**

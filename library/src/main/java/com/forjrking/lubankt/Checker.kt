@@ -1,21 +1,18 @@
-package com.forjrking.xluban
+package com.forjrking.lubankt
 
 import android.app.Application
 import android.content.Context
 import android.os.Build
-import android.os.Process
 import android.util.DisplayMetrics
 import android.view.WindowManager
-import com.forjrking.xluban.io.BufferedInputStreamWrap
-import com.forjrking.xluban.parser.DefaultImgHeaderParser
-import com.forjrking.xluban.parser.ExifInterfaceImgHeaderParser
-import com.forjrking.xluban.parser.ImageType
-import com.forjrking.xluban.parser.ImgHeaderParser
+import com.forjrking.lubankt.io.BufferedInputStreamWrap
+import com.forjrking.lubankt.parser.DefaultImgHeaderParser
+import com.forjrking.lubankt.parser.ExifInterfaceImgHeaderParser
+import com.forjrking.lubankt.parser.ImageType
+import com.forjrking.lubankt.parser.ImgHeaderParser
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
-import java.util.concurrent.ThreadFactory
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.jvm.Throws
 
 internal object Checker {
