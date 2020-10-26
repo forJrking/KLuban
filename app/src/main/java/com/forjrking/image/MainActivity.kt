@@ -1,7 +1,6 @@
 package com.forjrking.image
 
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
@@ -9,17 +8,12 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import com.forjrking.lubankt.Luban
 import com.lzy.imagepicker.ImagePicker
 import com.lzy.imagepicker.bean.ImageItem
 import com.lzy.imagepicker.ui.ImageGridActivity
 import com.lzy.imagepicker.view.CropImageView
 import com.lzy.imagepicker.view.CropImageView.OnBitmapSaveCompleteListener
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import java.io.File
 
 
@@ -86,6 +80,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 Luban.with(this)
                         .load(item.uri)
                         .useDownSample(false)
+                        .ignoreBy(20000)
                         .compressObserver {
                             onStart = {
                                 //Log.d(TAG, "onStart: ")

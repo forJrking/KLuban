@@ -3,7 +3,6 @@ package com.forjrking.lubankt.parser
 import android.graphics.Bitmap
 import java.io.IOException
 import java.io.InputStream
-import kotlin.jvm.Throws
 
 /** Interface for the ImageHeaderParser.  */
 interface ImgHeaderParser {
@@ -53,7 +52,7 @@ enum class ImageType(val suffix: String, val hasAlpha: Boolean, val format: Bitm
     WEBP("webp", false, Bitmap.CompressFormat.WEBP),
 
     /* Unrecognized type.  */
-    UNKNOWN("unknown", false, Bitmap.CompressFormat.JPEG);
+    UNKNOWN("jpeg", false, Bitmap.CompressFormat.JPEG);
 
 }
 
