@@ -99,7 +99,7 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
             //PNG等无损格式不支持压缩
             if (compressFormat != CompressFormat.PNG) {
                 var tempQuality = quality
-                //耗时由此处触发 每次降低6个点
+                //耗时由此处触发 每次降低6个点  图像显示效果和大小不能同时兼得 这里还要优化
                 while (stream.size() / 1024 > (rqSize * scale) && tempQuality > 6) {
                     stream.reset()
                     tempQuality -= 6
