@@ -294,7 +294,7 @@ enum class ImageType(val suffix: String, val hasAlpha: Boolean, val format: Bitm
    当然这样还不够好，我使用了自定义线程池方式这样可以在不同版本的手机上使用不同策略，而且提供自定义线程名称，在线上可以用来方便定位异常业务
 
    ```kotlin
-companion object {
+   companion object {
        //主要作用用于并行执行时候可以限制执行任务个数 防止OOM
        internal val supportDispatcher: ExecutorCoroutineDispatcher
        init {
@@ -320,16 +320,16 @@ companion object {
 3. Flow并行2种方式
 
    ```kotlin
-//控制同时在此自定义协程调度内执行任务数量2个
-val customerDispatcher = Executors.newFixedThreadPool(2).asCoroutineDispatcher()
-suspend fun compressV(int: Int): String = withContext(customerDispatcher) {
+   //控制同时在此自定义协程调度内执行任务数量2个
+   val customerDispatcher = Executors.newFixedThreadPool(2).asCoroutineDispatcher()
+   suspend fun compressV(int: Int): String = withContext(customerDispatcher) {
       //模拟压缩文件
       println("compress 开始:$int \tthread:${Thread.currentThread().name}")
       Thread.sleep(300)
       val toString = int.toString() + "R"
       println("compress 结束:${toString} \tthread:${Thread.currentThread().name}")
       return@withContext toString
-}
+   }
    ```
 
 - `flatMapMerge`操作符
