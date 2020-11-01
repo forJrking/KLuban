@@ -1,29 +1,29 @@
 ## KLuban是基于鲁班算法用Kotlin+Jetpack重构的项目
 
-KLuban![](https://jitpack.io/v/forJrking/KLuban.svg)使用Kotlin + 协程 + Flow(并发任务) + LiveData(监听回调) + Glide图片识别 + 邻近(鲁班)、双线性采样图片算法压缩框架，欢迎改进 fork 和 star
+KLuban ![](https://jitpack.io/v/forJrking/KLuban.svg) 使用Kotlin + 协程 + Flow(并发任务) + LiveData(监听回调) + Glide图片识别 + 邻近(鲁班)、双线性采样图片算法压缩框架，欢迎改进 fork 和 star
 
 ## 集成和使用 
 
-**Step 1.**Add it in your root build.gradle at the end of repositories:
+Step 1.Add it in your root build.gradle at the end of repositories:
 
 ```css
-	allprojects {
-		repositories {
-			...
-			maven { url 'https://jitpack.io' }
-		}
+allprojects {
+	repositories {
+		...
+		maven { url 'https://jitpack.io' }
 	}
+}
 ```
 
-**Step 2.** Add the dependency
+Step 2.Add the dependency
 
 ```css
-	dependencies {
-	        implementation 'com.github.forJrking:KLuban:v1.0.0'
-	}
+dependencies {
+  implementation 'com.github.forJrking:KLuban:v1.0.1'
+}
 ```
 
-**Step 2.**  Api：
+Step 3.Api：
 
 ```kotlin
 Luban.with(LifecycleOwner)               //Lifecycle,可以不填写内部使用ProcessLifecycleOwner
