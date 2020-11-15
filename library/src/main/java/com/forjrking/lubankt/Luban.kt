@@ -97,6 +97,12 @@ class Luban private constructor(private val owner: LifecycleOwner) {
                         is Uri -> {
                             Checker.context.contentResolver.openInputStream(src as Uri)!!
                         }
+                        is Bitmap -> {
+                            val os = ByteArrayOutputStream()
+                            (src as Bitmap).compress(CompressFormat.JPEG, 100, os)
+                            (src as Bitmap).recycle();
+                            ByteArrayInputStream(os.toByteArray())
+                        }
                         else -> {
                             throw IOException("Incoming data type exception, it must be String, File, Uri")
                         }
