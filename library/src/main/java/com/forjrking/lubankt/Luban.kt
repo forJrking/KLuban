@@ -5,14 +5,12 @@ import android.graphics.Bitmap.CompressFormat
 import android.net.Uri
 import android.os.Build
 import android.os.Process
-import android.util.Log
 import androidx.annotation.IntRange
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
-import com.forjrking.lubankt.Checker.TAG
 import com.forjrking.lubankt.ext.CompressLiveData
 import com.forjrking.lubankt.ext.CompressResult
 import com.forjrking.lubankt.ext.State
@@ -59,6 +57,13 @@ class Luban private constructor(private val owner: LifecycleOwner) {
     fun load(path: String) = loadGeneric(path) { FileInputStream(it) }
 
     fun load(uri: Uri) = loadGeneric(uri) { Checker.context.contentResolver.openInputStream(it)!! }
+
+    fun load(bitmap: Bitmap) = loadGeneric(bitmap) {
+        val os = ByteArrayOutputStream()
+        bitmap.compress(CompressFormat.JPEG, 100, os)
+        bitmap.recycle();
+        ByteArrayInputStream(os.toByteArray())
+    }
 
     // 把数据转换成 流
     private fun <T> loadGeneric(ts: T, transform: (T) -> InputStream): Builder<T, File> {
