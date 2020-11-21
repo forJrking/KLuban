@@ -1,6 +1,6 @@
-## KLuban是基于鲁班算法用Kotlin+Jetpack重构的项目
+## 本项目是基于Luban算法，重构后实现的图片压缩框架 ![](https://jitpack.io/v/forJrking/KLuban.svg)
 
-KLuban ![](https://jitpack.io/v/forJrking/KLuban.svg) 使用Kotlin + 协程 + Flow(并行任务) + LiveData(监听回调) + Glide图片识别和内存优化 + 邻近(鲁班)、双线性采样图片算法压缩框架，欢迎改进 fork 和 star
+KLubanv使用Kotlin + 协程 + Flow(并行任务) + LiveData(监听回调) + Glide图片识别和内存优化 + 邻近(鲁班)、双线性采样图片算法压缩框架，欢迎改进 fork 和 star
 
 ## 集成和使用 
 
@@ -8,10 +8,10 @@ Step 1.Add it in your root build.gradle at the end of repositories:
 
 ```css
 allprojects {
-	repositories {
-		...
-		maven { url 'https://jitpack.io' }
-	}
+   repositories {
+   	...
+   	maven { url 'https://jitpack.io' }
+   }
 }
 ```
 
@@ -19,33 +19,33 @@ Step 2.Add the dependency
 
 ```css
 dependencies {
-  implementation 'com.github.forJrking:KLuban:1.0.1'
+  implementation 'com.github.forJrking:KLuban:1.0.2'
 }
 ```
 
 Step 3.Api：
 
 ```kotlin
-Luban.with(LifecycleOwner)               //Lifecycle,可以不填写内部使用ProcessLifecycleOwner
-        .load(uri, uri)                  //支持 File,Uri,InputStream,String,和以上数据数组和集合
-        .setOutPutDir(path)              //输出目录文件夹
-        .concurrent(true)                //多文件压缩时是否并行,内部优化线程并行数量防止OOM
-        .useDownSample(true)             //压缩算法 true采用邻近采样,否则使用双线性采样(纯文字图片效果绝佳)
-        .format(Bitmap.CompressFormat.PNG)//压缩后输出文件格式 支持 JPG,PNG,WEBP
-        .ignoreBy(200)                   //期望大小,大小和图片呈现质量不能均衡所以压缩后不一定小于此值,
-        .quality(95)                     //质量压缩系数  0-100
-        .rename { "pic$it" }             //文件重命名
-        .filter { it!=null }             //过滤器
+Luban.with(LifecycleOwner)               //(可选)Lifecycle,可以不填写内部使用ProcessLifecycleOwner
+        .load(uri, uri)                  //支持 File,Uri,InputStream,String,Bitmap 和以上数据数组和集合
+        .setOutPutDir(path)              //(可选)输出目录文件夹
+        .concurrent(true)                //(可选)多文件压缩时是否并行,内部优化线程并行数量防止OOM
+        .useDownSample(true)             //(可选)压缩算法 true采用邻近采样,否则使用双线性采样(纯文字图片效果绝佳)
+        .format(Bitmap.CompressFormat.PNG)//(可选)压缩后输出文件格式 支持 JPG,PNG,WEBP
+        .ignoreBy(200)                   //(可选)期望大小,大小和图片呈现质量不能均衡所以压缩后不一定小于此值,
+        .quality(95)                     //(可选)质量压缩系数  0-100
+        .rename { "pic$it" }             //(可选)文件重命名
+        .filter { it!=null }             //(可选)过滤器
         .compressObserver {
             onSuccess = { }
             onStart = {}
             onCompletion = {}
-            onError = { e, s -> }
+            onError = { e, _ -> }
         }.launch()
 ```
 ## 原框架问题分析和技术预估
 
-Luban是基于Android原生图片压缩框架，主打特点是近乎微信的图像采样压缩算法。由于技术迭代，已经不能满足产品需求。下面为核心压缩实现，列出鲁班存在的问题：
+Luban是基于Android原生API的图片压缩框架，主打特点是近乎微信的图像采样压缩算法。由于技术迭代，已经不能满足产品需求。下面为核心压缩实现，列出鲁班存在的问题：
 
 ```java
 File compress() throws IOException {
@@ -84,7 +84,6 @@ File compress() throws IOException {
 - 参考Glide对字节数组的复用，以及`InputStream的mark()`、`reset()`来优化重复打开开销
 - 利用`LiveData`来实现监听，自动注销监听。
 - 利用协程来实现异步压缩和并行压缩任务，可以在合适时机取消携程来终止任务
-
 
 
 ## 源码分析和优化
@@ -280,11 +279,20 @@ enum class ImageType(val suffix: String, val hasAlpha: Boolean, val format: Bitm
 
 ### Flow使用和自定义线程调度控制并发任务数量
 
-1. Flow的协程选择
+1. 首先我们把压缩图片的的方法添加 `suspend` 声明为挂起函数
+
+```kotlin
+   suspend fun compress(): File = withContext(customerDispatcher) {
+      //解析和压缩
+      return@withContext file
+   }
+ ```
+
+2. Flow的协程选择
 
    由于`LiveData`需要使用`LifecycleOwner`，这里使用flow的协程为`LifecycleOwner.lifecycleScope`,由于协程几个线程调度，在并行执行图片压缩时候，一旦图片过多同时执行解码的图片数量不可控，就会导致内存占用瞬间增加极可能导致OOM。这里我们需要自定义协程线程调度。
 
-2. 自定义线程调度
+3. 自定义线程调度
 
    ```kotlin
    //可以使用协程的扩展方法 .asCoroutineDispatcher()
@@ -317,7 +325,7 @@ enum class ImageType(val suffix: String, val hasAlpha: Boolean, val format: Bitm
    }
    ```
    
-3. Flow并行2种方式
+4. Flow并行2种方式
 
    ```kotlin
    //控制同时在此自定义协程调度内执行任务数量2个
