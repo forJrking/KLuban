@@ -88,13 +88,13 @@ File compress() throws IOException {
 
 ## 源码分析和优化
 
-### Glide 图片识别
+### 借鉴Glide图片识别
 
-当我们修改图片后缀或者没有后缀，Glide依旧可以正常解码显示图像。它是怎么做到的，主要依靠`ImageHeaderParserUtils`这个类,
+不能准确识别文件是什么格式的图像文件，解码时候指定不合适的格式会浪费内存，而且输出时候可能导致透明层丢失等问题。来看看Glide怎么做。当我们修改图片后缀或者没有后缀，Glide依旧可以正常解码显示图像。它是怎么做到的，主要依靠`ImageHeaderParserUtils`这个类：
 
 ```java
 public final class ImageHeaderParserUtils {
-	... //通过ImageHeaderParser获取ImageType和图片调度
+	... //通过ImageHeaderParser获取ImageType和图片角度
   public static ImageType getType(List<ImageHeaderParser> parsers,
      InputStream is,ArrayPool byteArrayPool)
    public static int getOrientation(List<ImageHeaderParser> parsers,
@@ -111,10 +111,10 @@ interface ImgHeaderParser {
 //实现类//内部通过InputStream 来读取字节来判断文件格式
 DefaultImageHeaderParser和ExifInterfaceImageHeaderParser
 ```
-我们分析下调用链，拷贝需要的类即可。由于源码较多，容易犯困，这里只简单说明功能和改造思路，有兴趣的自己阅读。
+做优化只需分析下调用链，拷贝需要的类即可。（由于源码较多，容易犯困，这里只简单说明功能和改造思路，有兴趣的自己阅读。）
 ```kotlin
-//还有个重要的类 RecyclableBufferedInputStream 主要作用包装InputStream为其实现字节数组复用
-//以及支持 mark()\reset()这个在后面内存优化中我们再说
+//ImgHeaderParser解析用到InputStream，glie中实际实现是 RecyclableBufferedInputStream ，主要作用包装InputStream为其实现字节数组复用
+//以及支持 mark()\reset() 作用就是在流中做标记可以重复使用流对象降低开销，这个在后面内存优化中我们再说
 
 //简单改造下 suffix：图片的后缀，hasAlpha：图片是否包含透明层，format：输出时候支持的格式
 enum class ImageType(val suffix: String, val hasAlpha: Boolean, val format: Bitmap.CompressFormat) {
@@ -155,7 +155,6 @@ enum class ImageType(val suffix: String, val hasAlpha: Boolean, val format: Bitm
      但是由于有些项目可能没有引入Glide,为了做出兼容，一般我们会拷贝代码来使用。这样显然不合适，我们这里采用反射检测的方式来使用Glide已经实现的功能。
 
      1. 首先在我们的lib中使用`compileOnly ("com.github.bumptech.glide:glide:4.11.0@aar")`引入用于编译可以通过
-
      2. 紧接着实现一个工具类，获取和销毁字节数组，注意在调用`Glide.get(Checker.context).arrayPool`必须使用显示指定全包名的方式，不然项目在类加载`ArrayProvide`会加载其导包的类，如果没有使用Glide就会抛出类加载异常。最终实现如下：
 
      ```kotlin
@@ -192,26 +191,24 @@ enum class ImageType(val suffix: String, val hasAlpha: Boolean, val format: Bitm
 
      3. 替换所有 `new byte[]`的使用的地方，后续项目中有其他需要优化字节数组获取的地方也可以使用这个类。
      
-        
-     
-- 解码过程中内存预判
+    - 解码过程中内存预判
 
-  2.3-7.1之间，Bitmap的像素存储在Dalvik的Java堆上，利用图片解码前可以获取真实宽高和图片的位图配置，计算JVM内存占用，做出代码执行结果预判。如果内存不足就终止。
+      2.3-7.1之间，Bitmap的像素存储在Dalvik的Java堆上，利用图片解码前可以获取真实宽高和图片的位图配置，计算JVM内存占用，做出代码执行结果预判。如果内存不足就终止。
 
-  ```kotlin
-  //判断图片解码位图配置  内存不足就不进行压缩，抛出异常捕获而不是让其OOM程序崩溃
-  val isAlpha = compressConfig == Bitmap.Config.ARGB_8888
-  if (!hasEnoughMemory(width / options.inSampleSize, height / options.inSampleSize, isAlpha)) {
-     //TODO 8.0一下内存不足使用降级策略
-   if (!isAlpha || !hasEnoughMemory(width / options.inSampleSize, height / options.inSampleSize, false)) {
-       throw IOException("image memory is too large")
-   } else {
-       Checker.logger("memory warring 降低位图像素")
-     	//减低像素 减低内存
-       options.inPreferredConfig = Bitmap.Config.RGB_565
-   }
-  }
-  ```
+      ```kotlin
+      //判断图片解码位图配置  内存不足就不进行压缩，抛出异常捕获而不是让其OOM程序崩溃
+      val isAlpha = compressConfig == Bitmap.Config.ARGB_8888
+      if (!hasEnoughMemory(width / options.inSampleSize, height / options.inSampleSize, isAlpha)) {
+         //TODO 8.0一下内存不足使用降级策略
+       if (!isAlpha || !hasEnoughMemory(width / options.inSampleSize, height / options.inSampleSize, false)) {
+           throw IOException("image memory is too large")
+       } else {
+           Checker.logger("memory warring 降低位图像素")
+         	//减低像素 减低内存
+           options.inPreferredConfig = Bitmap.Config.RGB_565
+       }
+      }
+      ```
 
 2. `InputStream`优化
 
