@@ -1,6 +1,6 @@
 ## 本项目是基于Luban算法，重构后实现的图片压缩框架 ![](https://jitpack.io/v/forJrking/KLuban.svg)
 
-KLubanv使用Kotlin + 协程 + Flow(并行任务) + LiveData(监听回调) + Glide图片识别和内存优化 + 邻近(鲁班)、双线性采样图片算法压缩框架，欢迎改进 fork 和 star
+KLuban 使用Kotlin + 协程 + Flow(并行任务) + LiveData(监听回调) + Glide图片识别和内存优化 + 邻近(鲁班)、双线性采样图片算法压缩框架，欢迎改进 fork 和 star
 
 ## 集成和使用 
 
