@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 val item = mImages!![0]
 
                 Luban.with(this)
-                        .load(item.uri,item.uri,item.uri)
+                        .load(item.uri)
                         .ignoreBy(20000)
                         .compressObserver {
                             onStart = {
@@ -88,8 +88,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                                 Log.d(TAG, "onCompletion")
                             }
                             onSuccess = {
-                                Toast.makeText(this@MainActivity, "file" + it[0].name, Toast.LENGTH_LONG).show()
-                                mIv!!.setImageURI(Uri.fromFile(it[0]))
+                                Toast.makeText(this@MainActivity, "file" + it.name, Toast.LENGTH_LONG).show()
+                                mIv!!.setImageURI(Uri.fromFile(it))
                             }
                             onError = { a, b ->
                                 Log.d(TAG, a.toString())
