@@ -245,35 +245,40 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
     //挂起函数
     @Throws(IOException::class)
     protected suspend fun compress(stream: InputStreamProvider<T>): File = withContext(supportDispatcher) {
-        if (mOutPutDir.isNullOrEmpty()) {
-            throw IOException("mOutPutDir cannot be null or check permissions")
-        }
-        //后缀
-        val srcStream = stream.rewindAndGet()
-        val length = srcStream.available()
-        val type = Checker.getType(srcStream)
-        //组合一个名字给输出文件
-        val cacheFile = "$mOutPutDir/${System.nanoTime()}.${type.suffix}"
-        val outFile = if (mRenamePredicate != null) {
-//          重命名
-            File(mRenamePredicate!!.invoke(cacheFile))
-        } else {
-            File(cacheFile)
-        }
-        //如果没有指定format 智能获取解码结果
-        val format = mCompressFormat ?: type.format
-        //图片是否带有透明层
-        val decodeConfig = if (type.hasAlpha) Bitmap.Config.ARGB_8888 else Bitmap.Config.RGB_565
-        Checker.logger("源大小:$length 类型:$type 透明层:${type.hasAlpha} 期望质量:${bestQuality} 输出文件:$outFile 输出格式:$format")
-        //判断过滤器 开始压缩
-        return@withContext if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length) {
-            CompressEngine(stream, outFile, mCompress4Sample, mIgnoreSize, bestQuality, format, decodeConfig).compress()
-        } else {
-            //copy文件到临时文件
-            FileOutputStream(outFile).use { fos ->
-                stream.rewindAndGet().copyTo(fos)
+        return@withContext try {
+            if (mOutPutDir.isNullOrEmpty()) {
+                throw IOException("mOutPutDir cannot be null or check permissions")
             }
-            outFile
+            //后缀处理
+            val srcStream = stream.rewindAndGet()
+            val length = srcStream.available()
+            val type = Checker.getType(srcStream)
+            //组合一个名字给输出文件
+            val cacheFile = "$mOutPutDir/${System.nanoTime()}.${type.suffix}"
+            //重命名接口
+            val outFile = if (mRenamePredicate != null) {
+                File(mRenamePredicate!!.invoke(cacheFile))
+            } else {
+                File(cacheFile)
+            }
+            //如果没有指定format 智能获取解码结果
+            val format = mCompressFormat ?: type.format
+            //图片是否带有透明层
+            val decodeConfig = if (type.hasAlpha) Bitmap.Config.ARGB_8888 else Bitmap.Config.RGB_565
+            Checker.logger("源大小:$length 类型:$type 透明层:${type.hasAlpha} 期望质量:${bestQuality} 输出文件:$outFile 输出格式:$format")
+            //判断过滤器 开始压缩
+            if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length) {
+                val compressEngine = CompressEngine(stream, outFile, mCompress4Sample, mIgnoreSize, bestQuality, format, decodeConfig)
+                compressEngine.compress()
+            } else {
+                //copy文件到临时文件
+                FileOutputStream(outFile).use { fos ->
+                    stream.rewindAndGet().copyTo(fos)
+                }
+                outFile
+            }
+        } finally {
+            stream.close()
         }
     }
 

@@ -102,6 +102,17 @@ internal object Checker {
     }
 
     @Throws(IOException::class)
+    private fun getTypeInternal(parsers: List<ImgHeaderParser>, reader: TypeReader): ImageType {
+        parsers.forEach { parser ->
+            val type = reader.getType(parser)
+            if (type != ImageType.UNKNOWN) {
+                return@getTypeInternal type
+            }
+        }
+        return ImageType.UNKNOWN
+    }
+
+    @Throws(IOException::class)
     fun getOrientation(stream: InputStream?): Int {
         var inputStream = stream ?: return ImgHeaderParser.UNKNOWN_ORIENTATION
         if (!inputStream.markSupported()) {
@@ -122,22 +133,11 @@ internal object Checker {
     }
 
     @Throws(IOException::class)
-    private fun getTypeInternal(parsers: List<ImgHeaderParser>, reader: TypeReader): ImageType {
-        parsers.forEach { parser ->
-            val type = reader.getType(parser)
-            if (type != ImageType.UNKNOWN) {
-                return type
-            }
-        }
-        return ImageType.UNKNOWN
-    }
-
-    @Throws(IOException::class)
     private fun getOrientationInternal(parsers: List<ImgHeaderParser>, reader: OrientationReader): Int {
         parsers.forEach { parser ->
             val orientation = reader.getOrientation(parser)
             if (orientation != ImgHeaderParser.UNKNOWN_ORIENTATION) {
-                return orientation
+                return@getOrientationInternal orientation
             }
         }
         return ImgHeaderParser.UNKNOWN_ORIENTATION

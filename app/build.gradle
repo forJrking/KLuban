@@ -33,8 +33,8 @@ dependencies {
     // 协程
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.2.0"
     implementation "androidx.recyclerview:recyclerview:1.1.0"
-//    implementation project(path: ':library')
-    implementation 'com.github.forJrking:KLuban:1.0.1'
+    implementation project(path: ':library')
+//    implementation 'com.github.forJrking:KLuban:1.0.1'
 }
 repositories {
     mavenCentral()
