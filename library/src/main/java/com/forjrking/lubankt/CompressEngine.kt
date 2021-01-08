@@ -82,6 +82,9 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
         //加载入内存中
         options.inJustDecodeBounds = false
         //提供高质量
+        if (options.inPreferredConfig == Bitmap.Config.RGB_565) {
+            options.inDither = true
+        }
         options.inPreferQualityOverSpeed = true;
         //临时解码缓冲区 建议是16k
         val bytes4Option = ArrayProvide.get(16 * 1024)

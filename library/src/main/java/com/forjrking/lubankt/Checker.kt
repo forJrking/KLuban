@@ -160,13 +160,12 @@ internal object Checker {
     }
 
     private fun getRotateDegreeFromOrientation(orientation: Int): Int {
-        var degree = 0
-        when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> degree = 90
-            ExifInterface.ORIENTATION_ROTATE_180 -> degree = 180
-            ExifInterface.ORIENTATION_ROTATE_270 -> degree = 270
+        return when (orientation) {
+            ExifInterface.ORIENTATION_TRANSPOSE, ExifInterface.ORIENTATION_ROTATE_90 -> 90
+            ExifInterface.ORIENTATION_ROTATE_180, ExifInterface.ORIENTATION_FLIP_VERTICAL -> 180
+            ExifInterface.ORIENTATION_TRANSVERSE, ExifInterface.ORIENTATION_ROTATE_270 -> 270
+            else -> 0
         }
-        return degree
     }
 
     /** DES: 高版本废弃反射后建议自己赋值 */
