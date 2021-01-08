@@ -45,35 +45,34 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
     @Throws(IOException::class)
     fun compress(): File {
         //获取jpeg旋转角度
-        val angle = Checker.getOrientation(srcStream.rewindAndGet())
+        val angle = Checker.getRotateDegree(srcStream.rewindAndGet())
         //解析Bitmap
         val options = BitmapFactory.Options()
         //不加载进内存
         options.inJustDecodeBounds = true
-        //默认采样率 采样率是2的次幂
-        options.inSampleSize = 1
         //不加载进内存解析一次 获取宽高
         BitmapFactory.decodeStream(srcStream.rewindAndGet(), null, options)
         //解析出宽高
         val width = options.outWidth
         val height = options.outHeight
-        //计算采样率 来压缩
+        //默认采样率 采样率是2的次幂
         val scale = if (compress4Sample) {
             options.inSampleSize = computeSampleSize(width, height)
             1f
         } else {
-            options.inSampleSize = 1
+            options.inSampleSize = 0
             computeScaleSize(width, height)
         }
-        Checker.logger("scale :$scale,inSampleSize :${options.inSampleSize}")
+        Checker.logger("scale :$scale,inSampleSize :${options.inSampleSize},angle :$angle")
         // 指定图片 ARGB 或者RGB
         options.inPreferredConfig = compressConfig
         //预判内存不足情况
+        val tempScale = if (options.inSampleSize <= 0) 1 else options.inSampleSize
+        //TODO 8.0一下内存不足使用降级策略
         val isAlpha = compressConfig == Bitmap.Config.ARGB_8888
-        if (!hasEnoughMemory(width / options.inSampleSize, height / options.inSampleSize, isAlpha)) {
-            //TODO 8.0一下内存不足使用降级策略
+        if (!hasEnoughMemory(width / tempScale, height / tempScale, isAlpha)) {
             //减低像素 减低内存
-            if (!isAlpha || !hasEnoughMemory(width / options.inSampleSize, height / options.inSampleSize, false)) {
+            if (!isAlpha || !hasEnoughMemory(width / tempScale, height / tempScale, false)) {
                 throw IOException("image memory is too large")
             } else {
                 Checker.logger("memory warring 降低位图像素")
@@ -105,7 +104,7 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
                     tempQuality -= 6
                     bitmap.compress(compressFormat, tempQuality, stream)
                 }
-                Checker.logger( "真实输出质量$tempQuality")
+                Checker.logger("真实输出质量$tempQuality")
             }
         } finally {
             //位图释放
@@ -180,15 +179,15 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
      * 缩放 旋转bitmap scale =1f不缩放
      */
     private fun transformBitmap(bitmap: Bitmap, scale: Float, angle: Int): Bitmap {
-        if (scale == 1f || angle <= 0) return bitmap
+        if (scale == 1f && angle <= 0) return bitmap
         val matrix = Matrix()
+        //双线性压缩
+        if (scale != 1f) {
+            matrix.postScale(scale, scale)
+        }
         //旋转角度处理
         if (angle > 0) {
             matrix.postRotate(angle.toFloat())
-        }
-        //双线性压缩
-        if (scale != 1f) {
-            matrix.setScale(scale, scale)
         }
         try {
             return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)

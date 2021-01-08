@@ -2,6 +2,7 @@ package com.forjrking.lubankt
 
 import android.app.Application
 import android.content.Context
+import android.media.ExifInterface
 import android.os.Build
 import android.util.DisplayMetrics
 import android.util.Log
@@ -22,11 +23,11 @@ internal object Checker {
     // If we need this for other file types, we should consider removing this restriction.
     private val parsers: List<ImgHeaderParser> by lazy {
         mutableListOf<ImgHeaderParser>().apply {
-            add(DefaultImgHeaderParser())
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                 //支持HEIF
                 add(ExifInterfaceImgHeaderParser())
             }
+            add(DefaultImgHeaderParser())
         }
     }
 
@@ -151,6 +152,21 @@ internal object Checker {
     private interface OrientationReader {
         @Throws(IOException::class)
         fun getOrientation(parser: ImgHeaderParser): Int
+    }
+
+    @Throws(IOException::class)
+    fun getRotateDegree(stream: InputStream?): Int {
+        return getRotateDegreeFromOrientation(getOrientation(stream))
+    }
+
+    private fun getRotateDegreeFromOrientation(orientation: Int): Int {
+        var degree = 0
+        when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> degree = 90
+            ExifInterface.ORIENTATION_ROTATE_180 -> degree = 180
+            ExifInterface.ORIENTATION_ROTATE_270 -> degree = 270
+        }
+        return degree
     }
 
     /** DES: 高版本废弃反射后建议自己赋值 */
