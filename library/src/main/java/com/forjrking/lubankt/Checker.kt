@@ -2,11 +2,11 @@ package com.forjrking.lubankt
 
 import android.app.Application
 import android.content.Context
-import android.media.ExifInterface
 import android.os.Build
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.WindowManager
+import androidx.exifinterface.media.ExifInterface
 import com.forjrking.lubankt.io.BufferedInputStreamWrap
 import com.forjrking.lubankt.parser.DefaultImgHeaderParser
 import com.forjrking.lubankt.parser.ExifInterfaceImgHeaderParser
@@ -90,12 +90,13 @@ internal object Checker {
         }
         inputStream.mark(MARK_READ_LIMIT)
         //解析器
+        val finalIs = inputStream
         val reader = object : TypeReader {
             override fun getType(parser: ImgHeaderParser): ImageType {
                 return try {
-                    parser.getType(inputStream)
+                    parser.getType(finalIs)
                 } finally {
-                    inputStream.reset()
+                    finalIs.reset()
                 }
             }
         }
@@ -120,13 +121,13 @@ internal object Checker {
             inputStream = BufferedInputStreamWrap(inputStream)
         }
         inputStream.mark(MARK_READ_LIMIT)
-
+        val finalIs = inputStream
         val reader = object : OrientationReader {
             override fun getOrientation(parser: ImgHeaderParser): Int {
                 return try {
-                    parser.getOrientation(inputStream)
+                    parser.getOrientation(finalIs)
                 } finally {
-                    inputStream.reset()
+                    finalIs.reset()
                 }
             }
         }
