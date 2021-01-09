@@ -63,7 +63,7 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
             options.inSampleSize = 0
             computeScaleSize(width, height)
         }
-        Checker.logger("scale :$scale,inSampleSize :${options.inSampleSize},angle :$angle")
+        Checker.logger("scale :$scale,inSampleSize :${options.inSampleSize},rotate :$angle")
         // 指定图片 ARGB 或者RGB
         options.inPreferredConfig = compressConfig
         //预判内存不足情况
@@ -183,20 +183,19 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
      */
     private fun transformBitmap(bitmap: Bitmap, scale: Float, angle: Int): Bitmap {
         if (scale == 1f && angle <= 0) return bitmap
-        val matrix = Matrix()
-        //双线性压缩
-        if (scale != 1f) {
-            matrix.postScale(scale, scale)
-        }
-        //旋转角度处理
-        if (angle > 0) {
-            matrix.postRotate(angle.toFloat())
-        }
-        try {
-            return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        return try {
+            val matrix = Matrix()
+            //双线性压缩
+            if (scale != 1f) {
+                matrix.setScale(scale, scale)
+            }
+            //旋转角度处理
+            if (angle > 0) {
+                matrix.postRotate(angle.toFloat())
+            }
+            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
         } finally {
             System.gc()
-//            System.runFinalization()
         }
     }
 

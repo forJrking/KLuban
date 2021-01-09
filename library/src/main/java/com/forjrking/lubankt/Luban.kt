@@ -265,7 +265,7 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
             val format = mCompressFormat ?: type.format
             //图片是否带有透明层
             val decodeConfig = if (type.hasAlpha) Bitmap.Config.ARGB_8888 else Bitmap.Config.RGB_565
-            Checker.logger("源大小:$length 类型:$type 透明层:${type.hasAlpha} 期望质量:${bestQuality} 输出文件:$outFile 输出格式:$format")
+            Checker.logger("源大小:$length 类型:$type 透明层:${type.hasAlpha} 期望质量:${bestQuality} 输出格式:$format 输出文件:$outFile")
             //判断过滤器 开始压缩
             if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length) {
                 val compressEngine = CompressEngine(stream, outFile, mCompress4Sample, mIgnoreSize, bestQuality, format, decodeConfig)
