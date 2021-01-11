@@ -92,7 +92,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                                 mIv!!.setImageURI(Uri.fromFile(it))
                             }
                             onError = { a, b ->
-                                Log.d(TAG, a.toString())
+                                Log.e(TAG, a.toString())
                             }
                         }.launch()
             }

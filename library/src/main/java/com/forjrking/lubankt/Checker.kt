@@ -2,14 +2,12 @@ package com.forjrking.lubankt
 
 import android.app.Application
 import android.content.Context
-import android.os.Build
+import android.media.ExifInterface
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.WindowManager
-import androidx.exifinterface.media.ExifInterface
 import com.forjrking.lubankt.io.BufferedInputStreamWrap
 import com.forjrking.lubankt.parser.DefaultImgHeaderParser
-import com.forjrking.lubankt.parser.ExifInterfaceImgHeaderParser
 import com.forjrking.lubankt.parser.ImageType
 import com.forjrking.lubankt.parser.ImgHeaderParser
 import java.io.File
@@ -23,11 +21,8 @@ internal object Checker {
     // If we need this for other file types, we should consider removing this restriction.
     private val parsers: List<ImgHeaderParser> by lazy {
         mutableListOf<ImgHeaderParser>().apply {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                //支持HEIF
-                add(ExifInterfaceImgHeaderParser())
-            }
             add(DefaultImgHeaderParser())
+            //可以自定义新的解码器
         }
     }
 
@@ -137,10 +132,7 @@ internal object Checker {
     @Throws(IOException::class)
     private fun getOrientationInternal(parsers: List<ImgHeaderParser>, reader: OrientationReader): Int {
         parsers.forEach { parser ->
-            val orientation = reader.getOrientation(parser)
-            if (orientation != ImgHeaderParser.UNKNOWN_ORIENTATION) {
-                return@getOrientationInternal orientation
-            }
+            return@getOrientationInternal reader.getOrientation(parser)
         }
         return ImgHeaderParser.UNKNOWN_ORIENTATION
     }
