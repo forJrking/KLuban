@@ -19,7 +19,7 @@ Step 2.Add the dependency
 
 ```css
 dependencies {
-  implementation 'com.github.forJrking:KLuban:1.0.4'
+  implementation 'com.github.forJrking:KLuban:1.0.5'
 }
 ```
 
