@@ -139,16 +139,16 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
     protected var mIgnoreSize = 100 * 1024L
 
     //输出格式
-    private var mCompressFormat: CompressFormat? = null
+    protected var mCompressFormat: CompressFormat? = null
 
     // 重命名或文件重定向
-    private var mRenamePredicate: ((String) -> String)? = null
+    protected var mRenamePredicate: ((String) -> String)? = null
 
     // 单个订阅监听
-    private var mCompressLiveData = CompressLiveData<T, R>()
+    protected var mCompressLiveData = CompressLiveData<T, R>()
 
     //压缩过滤器
-    private var mCompressionPredicate: ((T) -> Boolean) = { true }
+    protected var mCompressionPredicate: ((T) -> Boolean) = { true }
 
 
     fun filter(predicate: (T) -> Boolean): Builder<T, R> {
@@ -242,8 +242,28 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
         }
     }
 
-    //挂起函数
+    //同步方法对外提供
     @Throws(IOException::class)
+    abstract fun get(): R
+
+    //协程异步方法 发射数据到参数 liveData中
+    protected abstract fun asyncRun(scope: CoroutineScope, liveData: CompressLiveData<T, R>)
+
+    /**
+     * begin compress image with asynchronous
+     */
+    fun launch() {
+        //开启协程
+        asyncRun(owner.lifecycleScope, mCompressLiveData)
+    }
+
+}
+
+private abstract class AbstractFileBuilder<T,R>(owner: LifecycleOwner) : Builder<T, R>(owner) {
+
+    //挂起函数
+    @Suppress("BlockingMethodInNonBlockingContext")
+    @Throws(Throwable::class)
     protected suspend fun compress(stream: InputStreamProvider<T>): File = withContext(supportDispatcher) {
         return@withContext try {
             if (mOutPutDir.isNullOrEmpty()) {
@@ -281,33 +301,17 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
             stream.close()
         }
     }
-
-    //同步方法对外提供
-    @Throws(IOException::class)
-    abstract fun get(): R
-
-    //协程异步方法 发射数据到参数 liveData中
-    protected abstract fun asyncRun(scope: CoroutineScope, liveData: CompressLiveData<T, R>)
-
-    /**
-     * begin compress image with asynchronous
-     */
-    fun launch() {
-        //开启协程
-        asyncRun(owner.lifecycleScope, mCompressLiveData)
-    }
-
 }
+
 
 /**
  * @Des: 用于单个文件压缩
  **/
-private class SingleRequestBuild<T>(owner: LifecycleOwner, val provider: InputStreamAdapter<T>) : Builder<T, File>(owner) {
+private class SingleRequestBuild<T>(owner: LifecycleOwner, val provider: InputStreamAdapter<T>) : AbstractFileBuilder<T, File>(owner) {
     override fun get(): File = runBlocking {
         compress(provider)
     }
 
-    @ExperimentalCoroutinesApi
     override fun asyncRun(scope: CoroutineScope, liveData: CompressLiveData<T, File>) {
         scope.launch {
             flow {
@@ -327,7 +331,8 @@ private class SingleRequestBuild<T>(owner: LifecycleOwner, val provider: InputSt
     }
 }
 
-private class MultiRequestBuild<T>(owner: LifecycleOwner, val providers: MutableList<InputStreamProvider<T>>) : Builder<T, List<File>>(owner) {
+//多文件压缩实现
+private class MultiRequestBuild<T>(owner: LifecycleOwner, val providers: MutableList<InputStreamProvider<T>>) : AbstractFileBuilder<T, List<File>>(owner) {
 
     /**一次获取所有而且是顺序压缩*/
     override fun get(): MutableList<File> = runBlocking {
@@ -380,7 +385,7 @@ private class CompressThreadFactory : ThreadFactory {
     init {
         val s = System.getSecurityManager()
         group = s?.threadGroup ?: Thread.currentThread().threadGroup!!
-        namePrefix = "LubanP-${poolNumber.getAndIncrement()}-thread-"
+        namePrefix = "KLuban-${poolNumber.getAndIncrement()}-thread-"
     }
 
     override fun newThread(r: java.lang.Runnable): Thread {

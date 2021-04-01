@@ -1,6 +1,7 @@
 package com.forjrking.image
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
@@ -50,24 +51,34 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         })
 
 //        val path: String = "D://t.jpg"
-//        val file: File = File("D://t.jpg")
+        val file: File = File("D://t.jpg")
 //        val uri: Uri = Uri.fromFile(file)
-//        Luban.with(this)                         //Lifecycle 获取,可以不填写参数也可使用ProcessLifecycleOwner
-//                .load(uri, uri)                          //支持 File,Uri,InputStream,String,和以上数据数组和集合
+//        val arrays = ArrayList<String>()
+        Luban.with(this)                         //Lifecycle 获取,可以不填写参数也可使用ProcessLifecycleOwner
+                .load(file)                          //支持 File,Uri,InputStream,String,和以上数据数组和集合
 //                .setOutPutDir(path)                      //输出目录文件夹
 //                .concurrent(true)          //多文件压缩是否并行,内部优化并行数量防止OOM
 //                .useDownSample(true)    //压缩算法 true采用邻近采样,否则使用双线性采样(纯文字图片效果绝佳)
-//                .format(Bitmap.CompressFormat.PNG)      //压缩后输出文件格式 支持 JPG,PNG,WEBP
-//                .ignoreBy(200)                     //期望大小,大小和图片呈现质量不能均衡所以压缩后不一定小于此值,
-//                .quality(95)                     //质量压缩系数  0-100
+                .format(Bitmap.CompressFormat.PNG)      //压缩后输出文件格式 支持 JPG,PNG,WEBP
+                .ignoreBy(200)                     //期望大小,大小和图片呈现质量不能均衡所以压缩后不一定小于此值,
+                .quality(95)                     //质量压缩系数  0-100
 //                .rename { "pic$it" }                    //文件重命名
 //                .filter { true }                        // 过滤器
-//                .compressObserver {
-//                    onSuccess = { }
-//                    onStart = {}
-//                    onCompletion = {}
-//                    onError = { e, s -> }
-//                }.launch()
+                .compressObserver {
+                    onStart = {
+                        //Log.d(TAG, "onStart: ")
+                    }
+                    onCompletion = {
+                        Log.d(TAG, "onCompletion")
+                    }
+                    onSuccess = {
+                        Toast.makeText(this@MainActivity, "file" + it.name, Toast.LENGTH_LONG).show()
+                        mIv!!.setImageURI(Uri.fromFile(it))
+                    }
+                    onError = { a, _ ->
+                        Log.e(TAG, a.toString())
+                    }
+                }.launch()
         //美如画
 
     }
@@ -76,7 +87,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         when (v.id) {
             R.id.compress_img -> if (mImages != null) {
                 val item = mImages!![0]
-
+                Log.d(TAG, "do-> ${item.uri}")
                 Luban.with(this)
                         .load(item.uri)
                         .ignoreBy(20000)
@@ -91,7 +102,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                                 Toast.makeText(this@MainActivity, "file" + it.name, Toast.LENGTH_LONG).show()
                                 mIv!!.setImageURI(Uri.fromFile(it))
                             }
-                            onError = { a, b ->
+                            onError = { a, _ ->
                                 Log.e(TAG, a.toString())
                             }
                         }.launch()
