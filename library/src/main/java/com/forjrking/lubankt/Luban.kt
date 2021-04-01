@@ -20,11 +20,13 @@ import com.forjrking.lubankt.io.InputStreamProvider
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.*
+import java.util.*
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.collections.ArrayList
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.jvm.Throws
 
@@ -81,7 +83,11 @@ class Luban private constructor(private val owner: LifecycleOwner) {
         return SingleRequestBuild(owner, provider)
     }
 
-    fun <T> load(vararg list: T): Builder<T, List<File>> {
+    fun <T> load(list: Array<T>): Builder<T, List<File>> {
+        return load(list.toList())
+    }
+
+    fun <T> load(list: List<T>): Builder<T, List<File>> {
         val providers: MutableList<InputStreamProvider<T>> = ArrayList()
         list.forEach {
             providers.add(object : InputStreamAdapter<T>() {
@@ -133,7 +139,7 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
     protected var mCompress4Sample = true
 
     //使用并发
-    protected var mUseConcurrent = true
+    protected var mUseConcurrent = false
 
     // 忽略压缩大小
     protected var mIgnoreSize = 100 * 1024L
@@ -259,7 +265,7 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
 
 }
 
-private abstract class AbstractFileBuilder<T,R>(owner: LifecycleOwner) : Builder<T, R>(owner) {
+private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builder<T, R>(owner) {
 
     //挂起函数
     @Suppress("BlockingMethodInNonBlockingContext")
@@ -340,28 +346,33 @@ private class MultiRequestBuild<T>(owner: LifecycleOwner, val providers: Mutable
     }
 
     /**并发方式一次2或者多个个任务 如果所有任务都下发内存OOM*/
-    @ExperimentalCoroutinesApi
     override fun asyncRun(scope: CoroutineScope, liveData: CompressLiveData<T, List<File>>) {
+        val result by lazy { ArrayList<File>() }
 //      并行和串行处理 让async和挂起函数保持同一个调度就会串行
-        val dispatchers = if (mUseConcurrent) EmptyCoroutineContext else supportDispatcher
-        scope.launch {
-            val result = ArrayList<File>()
-            providers.asFlow().map {
-                async(dispatchers) {
-                    compress(it)
+        val handler = CoroutineExceptionHandler { _, exception ->
+            Checker.logger("handlerCatch -> $exception")
+        }
+        scope.launch(handler) {
+            val taskFlow = if (mUseConcurrent) {
+                providers.map {
+                    async { compress(it) }
+                }.asFlow().map {
+                    it.await()
                 }
-            }.flowOn(Dispatchers.Default).map {
-                it.await()
-            }.buffer().onStart {
+            } else {
+                flow {
+                    providers.asFlow().map { compress(it) }
+                }
+            }
+            taskFlow.flowOn(supportDispatcher).onStart {
                 liveData.value = State.Start
             }.onCompletion {
                 liveData.value = State.Completion
-                if (it == null) liveData.value = State.Success(result)
+                //成功和错误回调在后也 可以调前
+                if (it == null) liveData.value = State.Success(result) else liveData.value = State.Error(it)
             }.onEach {
                 //排序好的结果收集
                 result.add(it)
-            }.catch {
-                liveData.value = State.Error(it)
             }.collect()
         }
     }

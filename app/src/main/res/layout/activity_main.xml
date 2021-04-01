@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     tools:context="com.forjrking.image.MainActivity">
 
@@ -19,27 +18,40 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="选择"/>
+            android:text="选择" />
 
         <Button
             android:id="@+id/compress_img"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="压缩"/>
+            android:text="压缩" />
 
         <Button
             android:id="@+id/save_img"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="保存"/>
+            android:text="保存" />
     </LinearLayout>
 
-    <com.lzy.imagepicker.view.CropImageView
-        android:id="@+id/cropImag"
+    <FrameLayout
         android:layout_width="match_parent"
-        app:cropStyle="rectangle"
-        android:layout_height="match_parent"/>
+        android:layout_height="match_parent">
+
+        <com.lzy.imagepicker.view.CropImageView
+            android:id="@+id/cropImag"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:cropStyle="rectangle" />
+
+        <ProgressBar
+            android:id="@+id/progress_circular"
+            android:layout_gravity="center"
+            android:visibility="gone"
+            android:layout_width="50dp"
+            android:layout_height="50dp"/>
+    </FrameLayout>
+
 
 </LinearLayout>
