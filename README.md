@@ -19,7 +19,7 @@ Step 2.Add the dependency
 
 ```css
 dependencies {
-  implementation 'com.github.forJrking:KLuban:1.0.5'
+  implementation 'com.github.forJrking:KLuban:1.0.7'
 }
 ```
 
@@ -27,7 +27,7 @@ Step 3.Api：
 
 ```kotlin
 Luban.with(LifecycleOwner)               //(可选)Lifecycle,可以不填写内部使用ProcessLifecycleOwner
-        .load(uri, uri)                  //支持 File,Uri,InputStream,String,Bitmap 和以上数据数组和集合
+        .load(uri)                       //支持 File,Uri,InputStream,String,Bitmap 和以上数据数组和集合
         .setOutPutDir(path)              //(可选)输出目录文件夹
         .concurrent(true)                //(可选)多文件压缩时是否并行,内部优化线程并行数量防止OOM
         .useDownSample(true)             //(可选)压缩算法 true采用邻近采样,否则使用双线性采样(纯文字图片效果绝佳)
