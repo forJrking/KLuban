@@ -104,6 +104,10 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                         .load(mImages!!.map { it.uri })
                         .ignoreBy(100)
                         .concurrent(true)
+                        .rename {
+                            Log.d(TAG, "rename $it")
+                            "$it.jpg"
+                        }
                         .compressObserver {
                             onStart = {
                                 //Log.d(TAG, "onStart: ")

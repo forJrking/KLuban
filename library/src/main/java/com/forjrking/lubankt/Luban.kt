@@ -27,7 +27,6 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.ArrayList
-import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.jvm.Throws
 
 /**
@@ -280,13 +279,10 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
             val length = srcStream.available()
             val type = Checker.getType(srcStream)
             //组合一个名字给输出文件
-            val cacheFile = "$mOutPutDir/${System.nanoTime()}.${type.suffix}"
+            val cacheName = "${System.nanoTime()}.${type.suffix}"
+            val cacheFile = "$mOutPutDir/${mRenamePredicate?.invoke(cacheName) ?: cacheName}"
             //重命名接口
-            val outFile = if (mRenamePredicate != null) {
-                File(mRenamePredicate!!.invoke(cacheFile))
-            } else {
-                File(cacheFile)
-            }
+            val outFile = File(cacheFile)
             //如果没有指定format 智能获取解码结果
             val format = mCompressFormat ?: type.format
             //图片是否带有透明层
@@ -348,11 +344,12 @@ private class MultiRequestBuild<T>(owner: LifecycleOwner, val providers: Mutable
     /**并发方式一次2或者多个个任务 如果所有任务都下发内存OOM*/
     override fun asyncRun(scope: CoroutineScope, liveData: CompressLiveData<T, List<File>>) {
         val result by lazy { ArrayList<File>() }
-//      并行和串行处理 让async和挂起函数保持同一个调度就会串行
+
         val handler = CoroutineExceptionHandler { _, exception ->
             Checker.logger("handlerCatch -> $exception")
         }
         scope.launch(handler) {
+            // 并行和串行处理
             val taskFlow = if (mUseConcurrent) {
                 providers.map {
                     async { compress(it) }
