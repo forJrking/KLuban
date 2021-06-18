@@ -1,5 +1,6 @@
 package com.forjrking.lubankt
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
 import android.media.ExifInterface
@@ -8,6 +9,7 @@ import android.util.Log
 import android.view.WindowManager
 import com.forjrking.lubankt.io.BufferedInputStreamWrap
 import com.forjrking.lubankt.parser.DefaultImgHeaderParser
+import com.forjrking.lubankt.parser.ExifInterfaceImageHeaderParser
 import com.forjrking.lubankt.parser.ImageType
 import com.forjrking.lubankt.parser.ImgHeaderParser
 import java.io.File
@@ -23,6 +25,7 @@ internal object Checker {
         mutableListOf<ImgHeaderParser>().apply {
             add(DefaultImgHeaderParser())
             //可以自定义新的解码器
+            add(ExifInterfaceImageHeaderParser())
         }
     }
 
