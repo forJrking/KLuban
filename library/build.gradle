@@ -45,10 +45,9 @@ dependencies {
     // liveData
     implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.2.0"
     //图片解码
-//    implementation 'androidx.exifinterface:exifinterface:1.3.0'
+    implementation 'androidx.exifinterface:exifinterface:1.3.2'
     //进程级别
     implementation 'androidx.lifecycle:lifecycle-process:2.2.0'
-    implementation "androidx.exifinterface:exifinterface:1.3.2"
     implementation 'androidx.fragment:fragment-ktx:1.2.5'
     compileOnly ("com.github.bumptech.glide:glide:4.11.0@aar")
 

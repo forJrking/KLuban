@@ -1,21 +1,29 @@
 package com.forjrking.lubankt
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
-import android.media.ExifInterface
+import android.os.Build
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.WindowManager
+import androidx.exifinterface.media.ExifInterface
 import com.forjrking.lubankt.io.BufferedInputStreamWrap
 import com.forjrking.lubankt.parser.DefaultImgHeaderParser
-import com.forjrking.lubankt.parser.ExifInterfaceImageHeaderParser
+import com.forjrking.lubankt.parser.ExifInterfaceImgHeaderParser
 import com.forjrking.lubankt.parser.ImageType
 import com.forjrking.lubankt.parser.ImgHeaderParser
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import kotlin.jvm.Throws
-
+/**
+ * @Des: 工具类的方法 内部持有Context通过反射获取的ApplicationContext
+ * @Author: forjrking
+ * @Time: 2021/6/18 6:23 下午
+ * @Version: 1.0.0
+ **/
+@SuppressLint("StaticFieldLeak")
 internal object Checker {
 
     // Right now we're only using this parser for HEIF images, which are only supported on OMR1+.
@@ -24,12 +32,14 @@ internal object Checker {
         mutableListOf<ImgHeaderParser>().apply {
             add(DefaultImgHeaderParser())
             //可以自定义新的解码器
-            add(ExifInterfaceImageHeaderParser())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                //支持HEIF
+                add(ExifInterfaceImgHeaderParser())
+            }
         }
     }
 
     const val TAG = "Luban"
-
     //常用压缩比
     private const val DEFAULT_QUALITY = 66
     private const val DEFAULT_LOW_QUALITY = 60
