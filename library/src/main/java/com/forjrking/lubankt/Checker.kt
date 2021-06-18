@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.WindowManager
 import com.forjrking.lubankt.io.BufferedInputStreamWrap
 import com.forjrking.lubankt.parser.DefaultImgHeaderParser
+import com.forjrking.lubankt.parser.ExifInterfaceImageHeaderParser
 import com.forjrking.lubankt.parser.ImageType
 import com.forjrking.lubankt.parser.ImgHeaderParser
 import java.io.File
@@ -23,6 +24,7 @@ internal object Checker {
         mutableListOf<ImgHeaderParser>().apply {
             add(DefaultImgHeaderParser())
             //可以自定义新的解码器
+            add(ExifInterfaceImageHeaderParser())
         }
     }
 
@@ -132,7 +134,10 @@ internal object Checker {
     @Throws(IOException::class)
     private fun getOrientationInternal(parsers: List<ImgHeaderParser>, reader: OrientationReader): Int {
         parsers.forEach { parser ->
-            return@getOrientationInternal reader.getOrientation(parser)
+            val orientation = reader.getOrientation(parser)
+            if (orientation != ImgHeaderParser.UNKNOWN_ORIENTATION) {
+                return@getOrientationInternal orientation
+            }
         }
         return ImgHeaderParser.UNKNOWN_ORIENTATION
     }
