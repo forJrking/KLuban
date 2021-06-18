@@ -1,6 +1,5 @@
 package com.forjrking.lubankt
 
-import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
 import android.media.ExifInterface
@@ -135,7 +134,10 @@ internal object Checker {
     @Throws(IOException::class)
     private fun getOrientationInternal(parsers: List<ImgHeaderParser>, reader: OrientationReader): Int {
         parsers.forEach { parser ->
-            return@getOrientationInternal reader.getOrientation(parser)
+            val orientation = reader.getOrientation(parser)
+            if (orientation != ImgHeaderParser.UNKNOWN_ORIENTATION) {
+                return@getOrientationInternal orientation
+            }
         }
         return ImgHeaderParser.UNKNOWN_ORIENTATION
     }
