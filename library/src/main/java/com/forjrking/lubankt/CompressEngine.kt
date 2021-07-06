@@ -36,10 +36,12 @@ import kotlin.math.min
  * @Version: 1.0.0
  * <lp>
 </lp> */
-class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, private val resFile: File,
-                                 private val compress4Sample: Boolean, private val rqSize: Long,
-                                 private val quality: Int, private val compressFormat: CompressFormat,
-                                 private val compressConfig: Bitmap.Config) {
+class CompressEngine constructor(
+    private val srcStream: InputStreamProvider<*>, private val resFile: File,
+    private val compress4Sample: Boolean = true, private val maxSize: Long = 0,
+    private val quality: Int = 100, private val compressFormat: CompressFormat,
+    private val compressConfig: Bitmap.Config,
+) {
 
     @WorkerThread
     @Throws(IOException::class)
@@ -85,26 +87,28 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
         if (options.inPreferredConfig == Bitmap.Config.RGB_565) {
             options.inDither = true
         }
-        options.inPreferQualityOverSpeed = true;
+        options.inPreferQualityOverSpeed = true
         //临时解码缓冲区 建议是16k
         val bytes4Option = ArrayProvide.get(16 * 1024)
         options.inTempStorage = bytes4Option
         //此处OOM
         var bitmap = BitmapFactory.decodeStream(srcStream.rewindAndGet(), null, options)
-                ?: throw IOException("decodeStream error")
+            ?: throw IOException("decodeStream error")
         //处理角度和缩放
         bitmap = transformBitmap(bitmap, scale, angle)
         // 获取解析流
         val stream = ByteArrayOutputStream()
-        try {//质量压缩开始
+        //质量压缩开始 这一步可能出错 比如手机只支持4096*4096做大尺寸
+        try {
             bitmap.compress(compressFormat, quality, stream)
             //PNG等无损格式不支持压缩
-            if (compressFormat != CompressFormat.PNG) {
+            if (compressFormat != CompressFormat.PNG && maxSize > 0) {
                 var tempQuality = quality
                 //耗时由此处触发 每次降低6个点  图像显示效果和大小不能同时兼得 这里还要优化
-                while (stream.size() / 1024 > (rqSize * scale) && tempQuality > 6) {
+                while (stream.size() > maxSize) {
+                    tempQuality -= 5
+                    if (tempQuality < 50) break
                     stream.reset()
-                    tempQuality -= 6
                     bitmap.compress(compressFormat, tempQuality, stream)
                 }
                 Checker.logger("真实输出质量$tempQuality")
@@ -203,13 +207,13 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
      * 判断内存是否足够 32位每个像素占用4字节
      */
     private fun hasEnoughMemory(width: Int, height: Int, isAlpha32: Boolean) =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                true
-            } else {
-                val runtime = Runtime.getRuntime()
-                val free = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()
-                val allocation = width * height shl if (isAlpha32) 2 else 1
-                Checker.logger("free : " + (free shr 20) + "MB, need : " + (allocation shr 20) + "MB")
-                allocation < free
-            }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            true
+        } else {
+            val runtime = Runtime.getRuntime()
+            val free = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()
+            val allocation = width * height shl if (isAlpha32) 2 else 1
+            Checker.logger("free : " + (free shr 20) + "MB, need : " + (allocation shr 20) + "MB")
+            allocation < free
+        }
 }

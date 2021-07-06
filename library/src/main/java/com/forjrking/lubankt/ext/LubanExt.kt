@@ -49,3 +49,10 @@ sealed class State<out T, out R> {
 }
 
 typealias CompressLiveData<T, R> = MutableLiveData<State<T, R>>
+
+/**单位换算*/
+enum class MemoryUnit {
+    BYTE,
+    KB,
+    MB,
+}

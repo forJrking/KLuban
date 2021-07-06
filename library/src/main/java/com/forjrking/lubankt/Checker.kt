@@ -193,15 +193,15 @@ internal object Checker {
     private fun reflectContext(): Context {
         try {
             return Class.forName("android.app.ActivityThread")
-                    .getMethod("currentApplication")
-                    .invoke(null) as Application
+                .getMethod("currentApplication")
+                .invoke(null) as Application
         } catch (e: Exception) {
             e.printStackTrace()
         }
         try {
             return Class.forName("android.app.AppGlobals")
-                    .getMethod("getInitialApplication")
-                    .invoke(null) as Application
+                .getMethod("getInitialApplication")
+                .invoke(null) as Application
         } catch (e: Exception) {
             e.printStackTrace()
         }
