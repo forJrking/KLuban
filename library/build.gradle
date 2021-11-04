@@ -30,6 +30,10 @@ android {
     libraryVariants.all {
         generateBuildConfigProvider?.get()?.enabled = false
     }
+    
+    compileOptions {
+        kotlinOptions.freeCompilerArgs += ['-module-name', "com.forjrking.lubankt.library"]
+    }
 }
 
 dependencies {
